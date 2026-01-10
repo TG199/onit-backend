@@ -1,0 +1,37 @@
+{
+  "name": "onit-backend",
+  "version": "1.0.0",
+  "description": "This is the backend server for the ONIT project. It provides RESTful API endpoints for the application.",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "migrate:create": "node-pg-migrate create",
+    "migrate:up": "node-pg-migrate up",
+    "migrate:down": "node-pg-migrate down",
+    "dev": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TG199/onit-backend.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "node-pg-migrate": "^8.0.4",
+    "pg": "^8.16.3",
+    "redis": "^5.10.0",
+    "sha1": "^1.1.1",
+    "uuid": "^13.0.0",
+    "zod": "^4.3.4"
+  },
+  "bugs": {
+    "url": "https://github.com/TG199/onit-backend/issues"
+  },
+  "homepage": "https://github.com/TG199/onit-backend#readme"
+}
