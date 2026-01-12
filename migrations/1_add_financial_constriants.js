@@ -198,4 +198,42 @@ export async function up(pgm) {
     function: "validate_withdrawal_status_transition",
     level: "ROW",
   });
+
+  gm.createIndex("users", "email", { unique: true });
+  pgm.createIndex("users", "phone", {
+    unique: true,
+    where: "phone IS NOT NULL",
+  });
+  pgm.createIndex("users", "role");
+  pgm.createIndex("users", "is_blocked");
+
+  pgm.createIndex("wallet_ledger", "user_id");
+  pgm.createIndex("wallet_ledger", "type");
+  pgm.createIndex("wallet_ledger", "created_at");
+  pgm.createIndex("wallet_ledger", ["reference_type", "reference_id"]);
+
+  pgm.createIndex("wallet_ledger", ["user_id", "created_at"]);
+
+  pgm.createIndex("submissions", "user_id");
+  pgm.createIndex("submissions", "ad_id");
+  pgm.createIndex("submissions", "status");
+  pgm.createIndex("submissions", "created_at");
+  pgm.createIndex("submissions", ["status", "created_at"]);
+
+  pgm.createIndex("withdrawals", "user_id");
+  pgm.createIndex("withdrawals", "status");
+  pgm.createIndex("withdrawals", "created_at");
+  pgm.createIndex("withdrawals", ["status", "created_at"]);
+
+  pgm.createIndex("ads", "status");
+  pgm.createIndex("ads", "created_at");
+
+  pgm.createIndex("admin_logs", "admin_id");
+  pgm.createIndex("admin_logs", ["resource_type", "resource_id"]);
+  pgm.createIndex("admin_logs", "created_at");
+
+  pgm.createIndex("ad_engagements", "user_id");
+  pgm.createIndex("ad_engagements", "ad_id");
+  pgm.createIndex("ad_engagements", "created_at");
+  pgm.createIndex("ad_engagements", ["user_id", "ad_id"]);
 }
