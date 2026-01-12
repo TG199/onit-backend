@@ -77,4 +77,51 @@ export async function up(pgm) {
     function: "update_user_balance",
     level: "ROW",
   });
+
+  pgm.addConstraint("users", "balance_non_negative", {
+    check: "balance >= 0",
+  });
+
+  pgm.addConstraint("users", "valid_role", {
+    check: "role IN ('user', 'admin')",
+  });
+
+  pgm.addConstraint("wallet_ledger", "valid_transaction_type", {
+    check:
+      "type IN ('ad_payout, 'withdrawal', 'refund', 'bonus', 'adjustment')",
+  });
+
+  pgm.addConstraint("wallet_ledger", "valid_reference_type", {
+    check:
+      "reference_type IN ('submission', withdrswal', 'admin_action', 'system')",
+  });
+
+  pgm.addConstraint("wallet_ledger", "amount_not_zero", {
+    check: "amount != 0",
+  });
+
+  pgm.addConstraint("submissions", "valid_submission_status", {
+    check: "status IN ('pending', 'under_review', 'approved', 'rejected')",
+  });
+
+  pgm.addConstraint("withdrawals", "valid_withdrawal_status", {
+    check:
+      "status IN ('pending', 'processing', 'completed', 'failed', 'cancelled')",
+  });
+
+  pgm.addConstraint("withdrawals", "amount_positive", {
+    check: "amount > 0",
+  });
+
+  pgm.addConstraint("withdrawals", "valid_method", {
+    check: "method IN ('bank_transfer', 'paypal', 'crypto', 'mobile_money'",
+  });
+
+  pgm.addConstraint("ads", "payout_positive", {
+    check: "payout_per_review > 0",
+  });
+
+  pgm.addConstraint("ads", "valid_ad_status", {
+    check: "status IN ('active, 'paused', 'expired'",
+  });
 }
