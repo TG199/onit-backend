@@ -236,4 +236,59 @@ export async function up(pgm) {
   pgm.createIndex("ad_engagements", "ad_id");
   pgm.createIndex("ad_engagements", "created_at");
   pgm.createIndex("ad_engagements", ["user_id", "ad_id"]);
+
+  pgm.createFunction(
+    "calculate_balance_from_ledger",
+    [{ name: "p_user_id", type: "uuid" }],
+    {
+      returns: "numeric",
+      language: "sql",
+      replace: true,
+    },
+    `
+    SELECT COALESCE(SUM(amount), 0)
+    FROM wallet_ledger
+    WHERE user_id = p_user_id;
+    `
+  );
+
+  pgm.createFunction(
+    "audit_user_balance",
+    [{ name: "p_user_id", type: "uuid" }],
+    {
+      returns:
+        "table(user_id uuid, stored_balance numeric, ledger_balance numeric, is_consistent boolean)",
+      language: "sql",
+      replace: true,
+    },
+    `
+    SELECT 
+      u.id as user_id,
+      u.balance as stored_balance,
+      calculate_balance_from_ledger(u.id) as ledger_balance,
+      u.balance = calculate_balance_from_ledger(u.id) as is_consistent
+    FROM users u
+    WHERE u.id = p_user_id;
+    `
+  );
+
+  pgm.createFunction(
+    "audit_all_balances",
+    [],
+    {
+      returns:
+        "table(user_id uuid, stored_balance numeric, ledger_balance numeric, difference numeric)",
+      language: "sql",
+      replace: true,
+    },
+    `
+    SELECT 
+      u.id as user_id,
+      u.balance as stored_balance,
+      calculate_balance_from_ledger(u.id) as ledger_balance,
+      u.balance - calculate_balance_from_ledger(u.id) as difference
+    FROM users u
+    WHERE u.balance != calculate_balance_from_ledger(u.id);
+    `
+  );
 }
