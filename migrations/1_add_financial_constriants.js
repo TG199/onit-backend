@@ -326,3 +326,67 @@ export async function up(pgm) {
     level: "ROW",
   });
 }
+
+export async function down(pgm) {
+  pgm.dropTrigger("withdrawals", "validate_amount_before_insert", {
+    ifExists: true,
+  });
+  pgm.dropTrigger("withdrawals", "validate_withdrawal_transition", {
+    ifExists: true,
+  });
+  pgm.dropTrigger("submissions", "validate_status_transition", {
+    ifExists: true,
+  });
+  pgm.dropTrigger("wallet_ledger", "update_balance_on_ledger_insert", {
+    ifExists: true,
+  });
+  pgm.dropTrigger("wallet_ledger", "prevent_ledger_deletes", {
+    ifExists: true,
+  });
+  pgm.dropTrigger("wallet_ledger", "prevent_ledger_updates", {
+    ifExists: true,
+  });
+
+  pgm.dropFunction("validate_withdrawal_amount", [], { ifExists: true });
+  pgm.dropFunction("audit_all_balances", [], { ifExists: true });
+  pgm.dropFunction("audit_user_balance", [{ type: "uuid" }], {
+    ifExists: true,
+  });
+  pgm.dropFunction("calculate_balance_from_ledger", [{ type: "uuid" }], {
+    ifExists: true,
+  });
+  pgm.dropFunction("validate_withdrawal_status_transition", [], {
+    ifExists: true,
+  });
+  pgm.dropFunction("validate_submission_status_transition", [], {
+    ifExists: true,
+  });
+  pgm.dropFunction("update_user_balance", [], { ifExists: true });
+  pgm.dropFunction("prevent_ledger_modification", [], { ifExists: true });
+
+  pgm.dropIndex("ad_engagements", ["user_id", "ad_id"], { ifExists: true });
+  pgm.dropIndex("admin_logs", "created_at", { ifExists: true });
+  pgm.dropIndex("withdrawals", ["status", "created_at"], { ifExists: true });
+  pgm.dropIndex("submissions", ["status", "created_at"], { ifExists: true });
+  pgm.dropIndex("wallet_ledger", ["user_id", "created_at"], { ifExists: true });
+
+  pgm.dropConstraint("ads", "valid_ad_status", { ifExists: true });
+  pgm.dropConstraint("ads", "payout_positive", { ifExists: true });
+  pgm.dropConstraint("withdrawals", "valid_method", { ifExists: true });
+  pgm.dropConstraint("withdrawals", "amount_positive", { ifExists: true });
+  pgm.dropConstraint("withdrawals", "valid_withdrawal_status", {
+    ifExists: true,
+  });
+  pgm.dropConstraint("submissions", "valid_submission_status", {
+    ifExists: true,
+  });
+  pgm.dropConstraint("wallet_ledger", "amount_not_zero", { ifExists: true });
+  pgm.dropConstraint("wallet_ledger", "valid_reference_type", {
+    ifExists: true,
+  });
+  pgm.dropConstraint("wallet_ledger", "valid_transaction_type", {
+    ifExists: true,
+  });
+  pgm.dropConstraint("users", "valid_role", { ifExists: true });
+  pgm.dropConstraint("users", "balance_non_negative", { ifExists: true });
+}
