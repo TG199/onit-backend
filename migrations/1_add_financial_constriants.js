@@ -291,4 +291,38 @@ export async function up(pgm) {
     WHERE u.balance != calculate_balance_from_ledger(u.id);
     `
   );
+
+  pgm.createIndex("submissions", ["user_id", "ad_id", "created_at"]);
+
+  pgm.createFunction(
+    "validate_withdrawal_amount",
+    [],
+    {
+      returns: "trigger",
+      language: "plpgsql",
+      replace: true,
+    },
+    `
+    BEGIN
+      DECLARE
+        user_balance numeric;
+      BEGIN
+        SELECT balance INTO user_balance FROM users WHERE id = NEW.user_id;
+        
+        IF NEW.amount > user_balance THEN
+          RAISE EXCEPTION 'Withdrawal amount (%) exceeds balance (%)', NEW.amount, user_balance;
+        END IF;
+        
+        RETURN NEW;
+      END;
+    END;
+    `
+  );
+
+  pgm.createTrigger("withdrawals", "validate_amount_before_insert", {
+    when: "BEFORE",
+    operation: "INSERT",
+    function: "validate_withdrawal_amount",
+    level: "ROW",
+  });
 }
