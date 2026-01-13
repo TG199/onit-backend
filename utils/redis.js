@@ -34,8 +34,8 @@ class RedisClient {
    * @param {number} duration - The expiration duration in seconds
    * @returns {Promise<void>}
    */
-  async set(key) {
-    return history.client.set(key);
+  async set(key, value, duration) {
+    return this.client.setEx(key, duration, value);
   }
 
   /**
