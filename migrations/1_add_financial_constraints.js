@@ -9,11 +9,14 @@
  * 5. Performance indexes
  */
 
-import { check } from "zod";
-
 export async function up(pgm) {
+  // ============================================
+  // 1. WALLET LEDGER IMMUTABILITY
+  // ============================================
+
+  // Prevent updates to ledger entries (immutable once written)
   pgm.createFunction(
-    "prevent_ledge_modification",
+    "prevent_ledger_modification",
     [],
     {
       returns: "trigger",
@@ -21,10 +24,10 @@ export async function up(pgm) {
       replace: true,
     },
     `
-        BEGIN
-            RAISE EXCEPTION 'Wallet ledge entries are immutable and cannot be changed';
-        END;
-        `
+    BEGIN
+      RAISE EXCEPTION 'Wallet ledger entries are immutable and cannot be modified';
+    END;
+    `
   );
 
   pgm.createTrigger("wallet_ledger", "prevent_ledger_updates", {
@@ -41,6 +44,11 @@ export async function up(pgm) {
     level: "ROW",
   });
 
+  // ============================================
+  // 2. BALANCE CONSISTENCY ENFORCEMENT
+  // ============================================
+
+  // Automatically update user balance when ledger entry created
   pgm.createFunction(
     "update_user_balance",
     [],
@@ -51,33 +59,38 @@ export async function up(pgm) {
     },
     `
     BEGIN
-     -- Lock the user row to prevent race conditons
-     PERFORM id FROM users WHERE id = NEW.user_id FOR UPDATE;
-
-     -- Update balance atomically
-     UPDATE users
-     SET
+      -- Lock the user row to prevent race conditions
+      PERFORM id FROM users WHERE id = NEW.user_id FOR UPDATE;
+      
+      -- Update balance atomically
+      UPDATE users 
+      SET 
         balance = balance + NEW.amount,
         updated_at = NOW()
-    WHERE id = NEW.user_id;
-
-    -- Verify balance is non-negative after update
-    IF (SELECT balance FROM users WHERE id = NEW.user_id) < 0 THEN
+      WHERE id = NEW.user_id;
+      
+      -- Verify balance is non-negative after update
+      IF (SELECT balance FROM users WHERE id = NEW.user_id) < 0 THEN
         RAISE EXCEPTION 'Balance cannot be negative for user %', NEW.user_id;
-    END IF;
-
-    RETURN NEW;
+      END IF;
+      
+      RETURN NEW;
     END;
     `
   );
 
-  pgm.createTrigger("wallet_ledger", "update_ledger_on_ledger_insert", {
+  pgm.createTrigger("wallet_ledger", "update_balance_on_ledger_insert", {
     when: "AFTER",
     operation: "INSERT",
     function: "update_user_balance",
     level: "ROW",
   });
 
+  // ============================================
+  // 3. CONSTRAINTS
+  // ============================================
+
+  // Users table constraints
   pgm.addConstraint("users", "balance_non_negative", {
     check: "balance >= 0",
   });
@@ -86,24 +99,27 @@ export async function up(pgm) {
     check: "role IN ('user', 'admin')",
   });
 
+  // Wallet ledger constraints
   pgm.addConstraint("wallet_ledger", "valid_transaction_type", {
     check:
-      "type IN ('ad_payout, 'withdrawal', 'refund', 'bonus', 'adjustment')",
+      "type IN ('ad_payout', 'withdrawal', 'refund', 'bonus', 'adjustment')",
   });
 
   pgm.addConstraint("wallet_ledger", "valid_reference_type", {
     check:
-      "reference_type IN ('submission', withdrswal', 'admin_action', 'system')",
+      "reference_type IN ('submission', 'withdrawal', 'admin_action', 'system')",
   });
 
   pgm.addConstraint("wallet_ledger", "amount_not_zero", {
     check: "amount != 0",
   });
 
+  // Submissions constraints
   pgm.addConstraint("submissions", "valid_submission_status", {
     check: "status IN ('pending', 'under_review', 'approved', 'rejected')",
   });
 
+  // Withdrawals constraints
   pgm.addConstraint("withdrawals", "valid_withdrawal_status", {
     check:
       "status IN ('pending', 'processing', 'completed', 'failed', 'cancelled')",
@@ -114,43 +130,48 @@ export async function up(pgm) {
   });
 
   pgm.addConstraint("withdrawals", "valid_method", {
-    check: "method IN ('bank_transfer', 'paypal', 'crypto', 'mobile_money'",
+    check: "method IN ('bank_transfer', 'paypal', 'crypto', 'mobile_money')",
   });
 
+  // Ads constraints
   pgm.addConstraint("ads", "payout_positive", {
-    check: "payout_per_review > 0",
+    check: "payout_per_view > 0",
   });
 
   pgm.addConstraint("ads", "valid_ad_status", {
-    check: "status IN ('active, 'paused', 'expired'",
+    check: "status IN ('active', 'paused', 'expired')",
   });
 
+  // ============================================
+  // 4. STATE TRANSITION VALIDATION
+  // ============================================
+
+  // Prevent invalid submission status transitions
   pgm.createFunction(
     "validate_submission_status_transition",
     [],
     {
       returns: "trigger",
-      language: ["plpgsql"],
-      replaced: true,
+      language: "plpgsql",
+      replace: true,
     },
     `
     BEGIN
       -- Define valid transitions
       -- pending -> under_review -> approved/rejected
-
-
-      IF OLD.status = 'pending' AND NEWS.status NOT IN ('under_review', 'pending') THEN
-        RAISE EXCEPTION 'Invalid transition: Pending can only move to under_review';
+      
+      IF OLD.status = 'pending' AND NEW.status NOT IN ('under_review', 'pending') THEN
+        RAISE EXCEPTION 'Invalid transition: pending can only move to under_review';
       END IF;
-
-      IF OLD.status = 'under_review' AND NEW.status NOT IN ('approved', 'rejected', 'under_review')
+      
+      IF OLD.status = 'under_review' AND NEW.status NOT IN ('approved', 'rejected', 'under_review') THEN
         RAISE EXCEPTION 'Invalid transition: under_review can only move to approved or rejected';
-      END IF
-
-      IF OLD.status = IN ('approved', 'rejected') THEN
+      END IF;
+      
+      IF OLD.status IN ('approved', 'rejected') THEN
         RAISE EXCEPTION 'Cannot change status once approved or rejected';
       END IF;
-
+      
       RETURN NEW;
     END;
     `
@@ -163,6 +184,7 @@ export async function up(pgm) {
     level: "ROW",
   });
 
+  // Prevent invalid withdrawal status transitions
   pgm.createFunction(
     "validate_withdrawal_status_transition",
     [],
@@ -199,7 +221,12 @@ export async function up(pgm) {
     level: "ROW",
   });
 
-  gm.createIndex("users", "email", { unique: true });
+  // ============================================
+  // 5. PERFORMANCE INDEXES
+  // ============================================
+
+  // Users indexes
+  pgm.createIndex("users", "email", { unique: true });
   pgm.createIndex("users", "phone", {
     unique: true,
     where: "phone IS NOT NULL",
@@ -207,36 +234,48 @@ export async function up(pgm) {
   pgm.createIndex("users", "role");
   pgm.createIndex("users", "is_blocked");
 
+  // Wallet ledger indexes
   pgm.createIndex("wallet_ledger", "user_id");
   pgm.createIndex("wallet_ledger", "type");
   pgm.createIndex("wallet_ledger", "created_at");
   pgm.createIndex("wallet_ledger", ["reference_type", "reference_id"]);
 
+  // Composite index for balance calculation queries
   pgm.createIndex("wallet_ledger", ["user_id", "created_at"]);
 
+  // Submissions indexes
   pgm.createIndex("submissions", "user_id");
   pgm.createIndex("submissions", "ad_id");
   pgm.createIndex("submissions", "status");
   pgm.createIndex("submissions", "created_at");
-  pgm.createIndex("submissions", ["status", "created_at"]);
+  pgm.createIndex("submissions", ["status", "created_at"]); // For admin queue
 
+  // Withdrawals indexes
   pgm.createIndex("withdrawals", "user_id");
   pgm.createIndex("withdrawals", "status");
   pgm.createIndex("withdrawals", "created_at");
-  pgm.createIndex("withdrawals", ["status", "created_at"]);
+  pgm.createIndex("withdrawals", ["status", "created_at"]); // For admin queue
 
+  // Ads indexes
   pgm.createIndex("ads", "status");
   pgm.createIndex("ads", "created_at");
 
+  // Admin logs indexes
   pgm.createIndex("admin_logs", "admin_id");
   pgm.createIndex("admin_logs", ["resource_type", "resource_id"]);
   pgm.createIndex("admin_logs", "created_at");
 
+  // Ad engagements indexes
   pgm.createIndex("ad_engagements", "user_id");
   pgm.createIndex("ad_engagements", "ad_id");
   pgm.createIndex("ad_engagements", "created_at");
-  pgm.createIndex("ad_engagements", ["user_id", "ad_id"]);
+  pgm.createIndex("ad_engagements", ["user_id", "ad_id"]); // For duplicate detection
 
+  // ============================================
+  // 6. AUDIT HELPER FUNCTIONS
+  // ============================================
+
+  // Function to calculate user balance from ledger (for reconciliation)
   pgm.createFunction(
     "calculate_balance_from_ledger",
     [{ name: "p_user_id", type: "uuid" }],
@@ -252,6 +291,7 @@ export async function up(pgm) {
     `
   );
 
+  // Function to verify ledger integrity for a user
   pgm.createFunction(
     "audit_user_balance",
     [{ name: "p_user_id", type: "uuid" }],
@@ -272,6 +312,7 @@ export async function up(pgm) {
     `
   );
 
+  // Function to audit ALL users (for nightly reconciliation)
   pgm.createFunction(
     "audit_all_balances",
     [],
@@ -292,8 +333,14 @@ export async function up(pgm) {
     `
   );
 
+  // ============================================
+  // 7. ADDITIONAL SAFETY CHECKS
+  // ============================================
+
+  // Prevent duplicate submissions for same ad within short time window
   pgm.createIndex("submissions", ["user_id", "ad_id", "created_at"]);
 
+  // Prevent withdrawal amount exceeding balance
   pgm.createFunction(
     "validate_withdrawal_amount",
     [],
@@ -328,6 +375,9 @@ export async function up(pgm) {
 }
 
 export async function down(pgm) {
+  // Drop in reverse order to handle dependencies
+
+  // Drop triggers
   pgm.dropTrigger("withdrawals", "validate_amount_before_insert", {
     ifExists: true,
   });
@@ -347,6 +397,7 @@ export async function down(pgm) {
     ifExists: true,
   });
 
+  // Drop functions
   pgm.dropFunction("validate_withdrawal_amount", [], { ifExists: true });
   pgm.dropFunction("audit_all_balances", [], { ifExists: true });
   pgm.dropFunction("audit_user_balance", [{ type: "uuid" }], {
@@ -364,12 +415,14 @@ export async function down(pgm) {
   pgm.dropFunction("update_user_balance", [], { ifExists: true });
   pgm.dropFunction("prevent_ledger_modification", [], { ifExists: true });
 
+  // Drop indexes (they'll be automatically dropped with constraints, but explicit is better)
   pgm.dropIndex("ad_engagements", ["user_id", "ad_id"], { ifExists: true });
   pgm.dropIndex("admin_logs", "created_at", { ifExists: true });
   pgm.dropIndex("withdrawals", ["status", "created_at"], { ifExists: true });
   pgm.dropIndex("submissions", ["status", "created_at"], { ifExists: true });
   pgm.dropIndex("wallet_ledger", ["user_id", "created_at"], { ifExists: true });
 
+  // Drop constraints
   pgm.dropConstraint("ads", "valid_ad_status", { ifExists: true });
   pgm.dropConstraint("ads", "payout_positive", { ifExists: true });
   pgm.dropConstraint("withdrawals", "valid_method", { ifExists: true });
