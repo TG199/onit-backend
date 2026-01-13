@@ -1,21 +1,19 @@
 import bcrypt from "bcrypt";
-import sha1 from "sha1";
 import { v4 as uuidv4 } from "uuid";
 import redisClient from "../utils/redis.js";
 import dbClient from "../utils/db.js";
 
 const SALT_ROUNDS = 10;
-const SESSION_TTL = 60 * 60 * 24;
+const SESSION_TTL = 60 * 60 * 24; // 24 hours in seconds
 
 /**
  * POST /auth/register
  */
-
 export async function register(req, res) {
   const { email, phone, password, location } = req.body;
 
   if (!email || !phone || !password) {
-    return res.status(400).json({ error: "Missing required fileds" });
+    return res.status(400).json({ error: "Missing required fields" });
   }
 
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
@@ -23,8 +21,7 @@ export async function register(req, res) {
   try {
     const result = await dbClient.query(
       `
-
-      INSERT INTO users (id, email, phone, password_has, location)
+      INSERT INTO users (id, email, phone, password_hash, location)
       VALUES ($1, $2, $3, $4, $5)
       RETURNING id, email, role
       `,
@@ -33,7 +30,7 @@ export async function register(req, res) {
 
     return res.status(201).json({
       message: "User registered successfully",
-      user: result.row[0],
+      user: result.rows[0],
     });
   } catch (err) {
     if (err.code === "23505") {
@@ -48,7 +45,6 @@ export async function register(req, res) {
 /**
  * POST /auth/login
  */
-
 export async function login(req, res) {
   const { email, password } = req.body;
 
@@ -56,41 +52,45 @@ export async function login(req, res) {
     return res.status(400).json({ error: "Missing credentials" });
   }
 
-  const result = dbClient.query(
-    `
-    SELECT id, password_has, role, is_blocked FROM users WHERE email = $1
-    `,
-    [email]
-  );
+  try {
+    const result = await dbClient.query(
+      `
+      SELECT id, password_hash, role, is_blocked FROM users WHERE email = $1
+      `,
+      [email]
+    );
 
-  const user = result.row[0];
+    const user = result.rows[0];
 
-  if (!user) {
-    return res.status(401).json({ error: "Invalid credentials" });
+    if (!user) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    if (user.is_blocked) {
+      return res.status(403).json({ error: "Account is blocked" });
+    }
+
+    const isValid = await bcrypt.compare(password, user.password_hash);
+    if (!isValid) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    const token = uuidv4();
+    await redisClient.set(`auth_${token}`, user.id, SESSION_TTL);
+
+    return res.status(200).json({
+      token,
+      role: user.role,
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Internal server error" });
   }
-
-  if (user.is_blocked) {
-    return res.status(403).json({ error: "Account is blocked" });
-  }
-
-  const isValid = await bcrypt.compare(password, user.password_hash);
-  if (!isValid) {
-    return res.status(401).json({ error: "Invalid credentials" });
-  }
-
-  const token = uuidv4();
-  await redisClient.set(` auth_${token}`, user.id, SESSION_TTL);
-
-  return res.status(200).json({
-    token,
-    role: user.role,
-  });
 }
 
 /**
  * POST /auth/logout
  */
-
 export async function logout(req, res) {
   const token = req.headers["x-token"];
   if (token) {
