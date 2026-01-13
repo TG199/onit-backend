@@ -8,11 +8,11 @@ export async function auth(req, res, next) {
   if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
   const result = await dbClient.query(
-    "SELECT id,  role, is_blocked FROM users WHERE id = $1",
+    "SELECT id, role, is_blocked FROM users WHERE id = $1",
     [userId]
   );
 
-  const user = result.row[0];
+  const user = result.rows[0];
   if (!user || user.is_blocked) {
     return res.status(403).json({ error: "Access denied" });
   }
