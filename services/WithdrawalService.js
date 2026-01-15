@@ -215,4 +215,52 @@ class WithdrawalService {
       createdAt: withdrawal.created_at,
     };
   }
+
+  /**
+   * Cancel pending withdrawal
+   *
+   * @param {string} withdrawalId - Withdrawal UUID
+   * @param {string} userId - User UUID (for authorization)
+   * @returns {Promise<Object>} Updated withdrawal
+   */
+  async cancelWithdrawal(withdrawalId, userId) {
+    return await this.db.transaction(async (tx) => {
+      // Get withdrawal
+      const result = await tx.query(
+        "SELECT * FROM withdrawals WHERE id = $1 FOR UPDATE",
+        [withdrawalId]
+      );
+
+      if (result.rows.length === 0) {
+        throw new NotFoundError("Withdrawal", withdrawalId);
+      }
+
+      const withdrawal = result.rows[0];
+
+      // Authorization
+      if (withdrawal.user_id !== userId) {
+        throw new ForbiddenError("Access denied");
+      }
+
+      // Can only cancel pending withdrawals
+      if (withdrawal.status !== WITHDRAWAL_STATUS.PENDING) {
+        throw new ValidationError("Can only cancel pending withdrawals");
+      }
+
+      // Update status
+      const updateResult = await tx.query(
+        `UPDATE withdrawals 
+         SET status = $1, updated_at = NOW()
+         WHERE id = $2
+         RETURNING *`,
+        [WITHDRAWAL_STATUS.CANCELLED, withdrawalId]
+      );
+
+      return {
+        id: updateResult.rows[0].id,
+        status: updateResult.rows[0].status,
+        updatedAt: updateResult.rows[0].updated_at,
+      };
+    });
+  }
 }
