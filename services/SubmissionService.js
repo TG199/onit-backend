@@ -263,4 +263,47 @@ class SubmissionService {
       canSubmit: !row.has_submitted,
     }));
   }
+
+  /**
+   * Get submission statistics for user
+   *
+   * @param {string} userId - User UUID
+   * @returns {Promise<Object>} Statistics
+   */
+  async getUserStats(userId) {
+    const result = await this.db.query(
+      `SELECT 
+        COUNT(*) as total_submissions,
+        COUNT(CASE WHEN status = $2 THEN 1 END) as pending,
+        COUNT(CASE WHEN status = $3 THEN 1 END) as under_review,
+        COUNT(CASE WHEN status = $4 THEN 1 END) as approved,
+        COUNT(CASE WHEN status = $5 THEN 1 END) as rejected
+       FROM submissions
+       WHERE user_id = $1`,
+      [
+        userId,
+        SUBMISSION_STATUS.PENDING,
+        SUBMISSION_STATUS.UNDER_REVIEW,
+        SUBMISSION_STATUS.APPROVED,
+        SUBMISSION_STATUS.REJECTED,
+      ]
+    );
+
+    const stats = result.rows[0];
+
+    return {
+      totalSubmissions: parseInt(stats.total_submissions),
+      pending: parseInt(stats.pending),
+      underReview: parseInt(stats.under_review),
+      approved: parseInt(stats.approved),
+      rejected: parseInt(stats.rejected),
+      approvalRate:
+        stats.total_submissions > 0
+          ? (
+              (parseInt(stats.approved) / parseInt(stats.total_submissions)) *
+              100
+            ).toFixed(2)
+          : 0,
+    };
+  }
 }
