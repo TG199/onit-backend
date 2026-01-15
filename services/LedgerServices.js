@@ -341,3 +341,5 @@ class LedgerService {
     }
   }
 }
+
+export default LedgerService;
