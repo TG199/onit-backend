@@ -302,3 +302,19 @@ export async function cancelWithdrawal(req, res) {
     handleError(res, error);
   }
 }
+
+/**
+ * GET /api/user/wallet/withdrawals/stats
+ * Get withdrawal statistics
+ */
+export async function getWithdrawalStats(req, res) {
+  try {
+    const userId = req.user.id;
+
+    const stats = await withdrawalService.getUserWithdrawalStats(userId);
+
+    res.status(200).json({ stats });
+  } catch (error) {
+    handleError(res, error);
+  }
+}
