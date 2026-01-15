@@ -122,4 +122,57 @@ class WithdrawalService {
       };
     });
   }
+
+  /**
+   * Get user's withdrawal history
+   *
+   * @param {string} userId - User UUID
+   * @param {Object} options - Query options
+   * @returns {Promise<Array>} Withdrawals
+   */
+  async getUserWithdrawals(
+    userId,
+    { limit = 50, offset = 0, status = null } = {}
+  ) {
+    let query = `
+      SELECT 
+        id,
+        amount,
+        method,
+        status,
+        transaction_hash,
+        failure_reason,
+        created_at,
+        processed_at,
+        completed_at
+      FROM withdrawals
+      WHERE user_id = $1
+    `;
+
+    const params = [userId];
+
+    if (status) {
+      query += ` AND status = $${params.length + 1}`;
+      params.push(status);
+    }
+
+    query += ` ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${
+      params.length + 2
+    }`;
+    params.push(limit, offset);
+
+    const result = await this.db.query(query, params);
+
+    return result.rows.map((row) => ({
+      id: row.id,
+      amount: parseFloat(row.amount),
+      method: row.method,
+      status: row.status,
+      transactionHash: row.transaction_hash,
+      failureReason: row.failure_reason,
+      createdAt: row.created_at,
+      processedAt: row.processed_at,
+      completedAt: row.completed_at,
+    }));
+  }
 }
