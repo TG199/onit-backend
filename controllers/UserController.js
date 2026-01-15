@@ -47,3 +47,37 @@ export async function getAvailableAds(req, res) {
     handleError(res, error);
   }
 }
+
+/**
+ * POST /api/user/engagements/:adId/submit
+ * Submit proof for an ad
+ */
+export async function submitProof(req, res) {
+  try {
+    const userId = req.user.id;
+    const { adId } = req.params;
+    const { proofUrl } = req.body;
+
+    if (!proofUrl) {
+      return res.status(400).json({ error: "proofUrl is required" });
+    }
+
+    const submission = await submissionService.submitProof(
+      userId,
+      adId,
+      proofUrl
+    );
+
+    res.status(201).json({
+      message: "Proof submitted successfully",
+      submission: {
+        id: submission.id,
+        adId: submission.ad_id,
+        status: submission.status,
+        createdAt: submission.created_at,
+      },
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+}
