@@ -395,3 +395,54 @@ export async function getDashboard(req, res) {
     handleError(res, error);
   }
 }
+
+/**
+ * Error handler helper
+ */
+function handleError(res, error) {
+  console.error("Controller error:", error);
+
+  if (error instanceof ValidationError) {
+    return res.status(400).json({
+      error: error.message,
+      code: error.code,
+      ...(error.details && { details: error.details }),
+    });
+  }
+
+  if (error instanceof NotFoundError) {
+    return res.status(404).json({
+      error: error.message,
+      code: error.code,
+    });
+  }
+
+  if (error instanceof InsufficientBalanceError) {
+    return res.status(400).json({
+      error: error.message,
+      code: error.code,
+      details: error.details,
+    });
+  }
+
+  if (error instanceof RateLimitError) {
+    return res.status(429).json({
+      error: error.message,
+      code: error.code,
+      ...(error.details && { retryAfter: error.details.retryAfter }),
+    });
+  }
+
+  if (error instanceof ConflictError) {
+    return res.status(409).json({
+      error: error.message,
+      code: error.code,
+    });
+  }
+
+  // Unknown error
+  return res.status(500).json({
+    error: "Internal server error",
+    code: "INTERNAL_ERROR",
+  });
+}
