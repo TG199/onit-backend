@@ -159,4 +159,37 @@ class LedgerService {
       throw new DatabaseError("Failed to calculate balance from ledger", error);
     }
   }
+
+  /**
+   * Audit user's balance (compare stored vs ledger)
+   *
+   * @param {string} userId - User UUID
+   * @returns {Promise<Object>} Audit result
+   */
+  async auditUserBalance(userId) {
+    try {
+      const result = await this.db.query(
+        "SELECT * FROM audit_user_balance($1)",
+        [userId]
+      );
+
+      if (result.rows.length === 0) {
+        throw new NotFoundError("User", userId);
+      }
+
+      const audit = result.rows[0];
+
+      return {
+        userId: audit.user_id,
+        storedBalance: parseFloat(audit.stored_balance),
+        ledgerBalance: parseFloat(audit.ledger_balance),
+        isConsistent: audit.is_consistent,
+        difference:
+          parseFloat(audit.stored_balance) - parseFloat(audit.ledger_balance),
+      };
+    } catch (error) {
+      if (error instanceof NotFoundError) throw error;
+      throw new DatabaseError("Failed to audit user balance", error);
+    }
+  }
 }
