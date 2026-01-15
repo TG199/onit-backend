@@ -128,3 +128,19 @@ export async function getSubmissionById(req, res) {
     handleError(res, error);
   }
 }
+
+/**
+ * GET /api/user/engagements/stats
+ * Get submission statistics
+ */
+export async function getSubmissionStats(req, res) {
+  try {
+    const userId = req.user.id;
+
+    const stats = await submissionService.getUserStats(userId);
+
+    res.status(200).json({ stats });
+  } catch (error) {
+    handleError(res, error);
+  }
+}
