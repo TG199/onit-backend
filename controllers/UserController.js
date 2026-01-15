@@ -144,3 +144,27 @@ export async function getSubmissionStats(req, res) {
     handleError(res, error);
   }
 }
+
+/**
+ * GET /api/user/wallet
+ * Get wallet balance and summary
+ */
+export async function getWallet(req, res) {
+  try {
+    const userId = req.user.id;
+
+    const balance = await ledgerService.getBalance(userId);
+    const stats = await ledgerService.getTransactionStats(userId);
+
+    res.status(200).json({
+      balance,
+      stats: {
+        totalEarned: stats.totalEarned,
+        totalWithdrawn: stats.totalWithdrawn,
+        totalTransactions: stats.totalTransactions,
+      },
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+}
