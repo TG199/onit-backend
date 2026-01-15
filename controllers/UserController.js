@@ -198,3 +198,40 @@ export async function getTransactions(req, res) {
     handleError(res, error);
   }
 }
+
+/**
+ * POST /api/user/wallet/withdraw
+ * Request withdrawal
+ */
+export async function requestWithdrawal(req, res) {
+  try {
+    const userId = req.user.id;
+    const { amount, method, paymentDetails } = req.body;
+
+    if (!amount || !method || !paymentDetails) {
+      return res.status(400).json({
+        error: "amount, method, and paymentDetails are required",
+      });
+    }
+
+    const withdrawal = await withdrawalService.requestWithdrawal(
+      userId,
+      parseFloat(amount),
+      method,
+      paymentDetails
+    );
+
+    res.status(201).json({
+      message: "Withdrawal request submitted successfully",
+      withdrawal: {
+        id: withdrawal.id,
+        amount: withdrawal.amount,
+        method: withdrawal.method,
+        status: withdrawal.status,
+        createdAt: withdrawal.createdAt,
+      },
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+}
