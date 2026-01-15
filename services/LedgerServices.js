@@ -306,4 +306,38 @@ class LedgerService {
       throw new DatabaseError("Failed to find balance mismatches", error);
     }
   }
+
+  /**
+   * Validate entry parameters
+   * @private
+   */
+  _validateEntryParams({ userId, type, amount, referenceType, referenceId }) {
+    if (!userId || typeof userId !== "string") {
+      throw new ValidationError("Valid userId is required");
+    }
+
+    if (!type || !isValidEnum(type, TRANSACTION_TYPES)) {
+      throw new ValidationError(
+        `Invalid transaction type. Must be one of: ${Object.values(
+          TRANSACTION_TYPES
+        ).join(", ")}`
+      );
+    }
+
+    if (typeof amount !== "number" || isNaN(amount) || amount === 0) {
+      throw new ValidationError("Amount must be a non-zero number");
+    }
+
+    if (!referenceType || !isValidEnum(referenceType, REFERENCE_TYPES)) {
+      throw new ValidationError(
+        `Invalid reference type. Must be one of: ${Object.values(
+          REFERENCE_TYPES
+        ).join(", ")}`
+      );
+    }
+
+    if (!referenceId || typeof referenceId !== "string") {
+      throw new ValidationError("Valid referenceId is required");
+    }
+  }
 }
