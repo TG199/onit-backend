@@ -282,3 +282,23 @@ export async function getWithdrawalById(req, res) {
     handleError(res, error);
   }
 }
+
+/**
+ * POST /api/user/wallet/withdrawals/:id/cancel
+ * Cancel pending withdrawal
+ */
+export async function cancelWithdrawal(req, res) {
+  try {
+    const userId = req.user.id;
+    const { id } = req.params;
+
+    const withdrawal = await withdrawalService.cancelWithdrawal(id, userId);
+
+    res.status(200).json({
+      message: "Withdrawal cancelled successfully",
+      withdrawal,
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+}
