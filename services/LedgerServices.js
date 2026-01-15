@@ -192,4 +192,62 @@ class LedgerService {
       throw new DatabaseError("Failed to audit user balance", error);
     }
   }
+
+  /**
+   * Get user's transaction history
+   *
+   * @param {string} userId - User UUID
+   * @param {Object} options - Query options
+   * @param {number} options.limit - Max records to return
+   * @param {number} options.offset - Pagination offset
+   * @param {string} options.type - Filter by transaction type
+   * @returns {Promise<Array>} Transaction history
+   */
+  async getTransactionHistory(
+    userId,
+    { limit = 50, offset = 0, type = null } = {}
+  ) {
+    try {
+      let query = `
+        SELECT 
+          id,
+          type,
+          amount,
+          balance_after,
+          reference_type,
+          reference_id,
+          metadata,
+          created_at
+        FROM wallet_ledger
+        WHERE user_id = $1
+      `;
+
+      const params = [userId];
+
+      if (type) {
+        query += ` AND type = $${params.length + 1}`;
+        params.push(type);
+      }
+
+      query += ` ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${
+        params.length + 2
+      }`;
+      params.push(limit, offset);
+
+      const result = await this.db.query(query, params);
+
+      return result.rows.map((row) => ({
+        id: row.id,
+        type: row.type,
+        amount: parseFloat(row.amount),
+        balanceAfter: parseFloat(row.balance_after),
+        referenceType: row.reference_type,
+        referenceId: row.reference_id,
+        metadata: row.metadata,
+        createdAt: row.created_at,
+      }));
+    } catch (error) {
+      throw new DatabaseError("Failed to get transaction history", error);
+    }
+  }
 }
