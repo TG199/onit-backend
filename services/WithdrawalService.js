@@ -332,4 +332,53 @@ class WithdrawalService {
     // Validate payment details based on method
     this._validatePaymentDetails(method, paymentDetails);
   }
+
+  /**
+   * Validate payment details based on withdrawal method
+   * @private
+   */
+  _validatePaymentDetails(method, details) {
+    switch (method) {
+      case WITHDRAWAL_METHODS.BANK_TRANSFER:
+        if (
+          !details.accountNumber ||
+          !details.bankName ||
+          !details.accountName
+        ) {
+          throw new ValidationError(
+            "Bank transfer requires accountNumber, bankName, and accountName"
+          );
+        }
+        break;
+
+      case WITHDRAWAL_METHODS.PAYPAL:
+        if (!details.email) {
+          throw new ValidationError("PayPal requires email address");
+        }
+        // Basic email validation
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(details.email)) {
+          throw new ValidationError("Invalid email address");
+        }
+        break;
+
+      case WITHDRAWAL_METHODS.CRYPTO:
+        if (!details.walletAddress || !details.network) {
+          throw new ValidationError(
+            "Crypto requires walletAddress and network"
+          );
+        }
+        break;
+
+      case WITHDRAWAL_METHODS.MOBILE_MONEY:
+        if (!details.phoneNumber || !details.provider) {
+          throw new ValidationError(
+            "Mobile money requires phoneNumber and provider"
+          );
+        }
+        break;
+
+      default:
+        throw new ValidationError("Invalid withdrawal method");
+    }
+  }
 }
