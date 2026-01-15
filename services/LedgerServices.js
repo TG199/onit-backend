@@ -116,4 +116,28 @@ class LedgerService {
       throw new DatabaseError("Failed to create ledger entry", error);
     }
   }
+
+  /**
+   * Get user's current balance
+   *
+   * @param {string} userId - User UUID
+   * @returns {Promise<number>} Current balance
+   */
+  async getBalance(userId) {
+    try {
+      const result = await this.db.query(
+        "SELECT balance FROM users WHERE id = $1",
+        [userId]
+      );
+
+      if (result.rows.length === 0) {
+        throw new NotFoundError("User", userId);
+      }
+
+      return parseFloat(result.rows[0].balance);
+    } catch (error) {
+      if (error instanceof NotFoundError) throw error;
+      throw new DatabaseError("Failed to get balance", error);
+    }
+  }
 }
