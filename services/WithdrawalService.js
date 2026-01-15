@@ -263,4 +263,42 @@ class WithdrawalService {
       };
     });
   }
+
+  /**
+   * Get withdrawal statistics for user
+   *
+   * @param {string} userId - User UUID
+   * @returns {Promise<Object>} Statistics
+   */
+  async getUserWithdrawalStats(userId) {
+    const result = await this.db.query(
+      `SELECT 
+        COUNT(*) as total_withdrawals,
+        COALESCE(SUM(CASE WHEN status = $2 THEN amount ELSE 0 END), 0) as total_withdrawn,
+        COUNT(CASE WHEN status = $3 THEN 1 END) as pending,
+        COUNT(CASE WHEN status = $4 THEN 1 END) as processing,
+        COUNT(CASE WHEN status = $2 THEN 1 END) as completed,
+        COUNT(CASE WHEN status = $5 THEN 1 END) as failed
+       FROM withdrawals
+       WHERE user_id = $1`,
+      [
+        userId,
+        WITHDRAWAL_STATUS.COMPLETED,
+        WITHDRAWAL_STATUS.PENDING,
+        WITHDRAWAL_STATUS.PROCESSING,
+        WITHDRAWAL_STATUS.FAILED,
+      ]
+    );
+
+    const stats = result.rows[0];
+
+    return {
+      totalWithdrawals: parseInt(stats.total_withdrawals),
+      totalWithdrawn: parseFloat(stats.total_withdrawn),
+      pending: parseInt(stats.pending),
+      processing: parseInt(stats.processing),
+      completed: parseInt(stats.completed),
+      failed: parseInt(stats.failed),
+    };
+  }
 }
