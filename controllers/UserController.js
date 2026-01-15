@@ -265,3 +265,20 @@ export async function getWithdrawals(req, res) {
     handleError(res, error);
   }
 }
+
+/**
+ * GET /api/user/wallet/withdrawals/:id
+ * Get withdrawal details
+ */
+export async function getWithdrawalById(req, res) {
+  try {
+    const userId = req.user.id;
+    const { id } = req.params;
+
+    const withdrawal = await withdrawalService.getWithdrawalById(id, userId);
+
+    res.status(200).json({ withdrawal });
+  } catch (error) {
+    handleError(res, error);
+  }
+}
