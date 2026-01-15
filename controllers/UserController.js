@@ -111,3 +111,20 @@ export async function getSubmissions(req, res) {
     handleError(res, error);
   }
 }
+
+/**
+ * GET /api/user/engagements/:id
+ * Get submission details
+ */
+export async function getSubmissionById(req, res) {
+  try {
+    const userId = req.user.id;
+    const { id } = req.params;
+
+    const submission = await submissionService.getSubmissionById(id, userId);
+
+    res.status(200).json({ submission });
+  } catch (error) {
+    handleError(res, error);
+  }
+}
