@@ -172,4 +172,49 @@ class SubmissionService {
       },
     }));
   }
+
+  /**
+   * Get submission by ID (user can only see their own)
+   *
+   * @param {string} submissionId - Submission UUID
+   * @param {string} userId - User UUID (for authorization)
+   * @returns {Promise<Object>} Submission details
+   */
+  async getSubmissionById(submissionId, userId) {
+    const result = await this.db.query(
+      `SELECT 
+        s.*,
+        a.title as ad_title,
+        a.payout_per_view
+       FROM submissions s
+       JOIN ads a ON s.ad_id = a.id
+       WHERE s.id = $1`,
+      [submissionId]
+    );
+
+    if (result.rows.length === 0) {
+      throw new NotFoundError("Submission", submissionId);
+    }
+
+    const submission = result.rows[0];
+
+    // Authorization: User can only see their own submissions
+    if (submission.user_id !== userId) {
+      throw new ForbiddenError("Access denied");
+    }
+
+    return {
+      id: submission.id,
+      userId: submission.user_id,
+      adId: submission.ad_id,
+      adTitle: submission.ad_title,
+      payoutAmount: parseFloat(submission.payout_per_view),
+      proofUrl: submission.proof_url,
+      status: submission.status,
+      rejectionReason: submission.rejection_reason,
+      reviewedBy: submission.reviewed_by,
+      reviewedAt: submission.reviewed_at,
+      createdAt: submission.created_at,
+    };
+  }
 }
