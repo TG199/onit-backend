@@ -235,3 +235,33 @@ export async function requestWithdrawal(req, res) {
     handleError(res, error);
   }
 }
+
+/**
+ * GET /api/user/wallet/withdrawals
+ * Get withdrawal history
+ */
+export async function getWithdrawals(req, res) {
+  try {
+    const userId = req.user.id;
+    const limit = parseInt(req.query.limit) || 50;
+    const offset = parseInt(req.query.offset) || 0;
+    const status = req.query.status || null;
+
+    const withdrawals = await withdrawalService.getUserWithdrawals(userId, {
+      limit,
+      offset,
+      status,
+    });
+
+    res.status(200).json({
+      withdrawals,
+      pagination: {
+        limit,
+        offset,
+        count: withdrawals.length,
+      },
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+}
