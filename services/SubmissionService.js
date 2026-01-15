@@ -114,4 +114,62 @@ class SubmissionService {
       return submissionResult.rows[0];
     });
   }
+
+  /**
+   * Get user's submission history
+   *
+   * @param {string} userId - User UUID
+   * @param {Object} options - Query options
+   * @returns {Promise<Array>} Submissions
+   */
+  async getUserSubmissions(
+    userId,
+    { limit = 50, offset = 0, status = null } = {}
+  ) {
+    let query = `
+      SELECT 
+        s.id,
+        s.status,
+        s.proof_url,
+        s.rejection_reason,
+        s.created_at,
+        s.reviewed_at,
+        a.id as ad_id,
+        a.title as ad_title,
+        a.payout_per_view,
+        a.image_url as ad_image
+      FROM submissions s
+      JOIN ads a ON s.ad_id = a.id
+      WHERE s.user_id = $1
+    `;
+
+    const params = [userId];
+
+    if (status) {
+      query += ` AND s.status = $${params.length + 1}`;
+      params.push(status);
+    }
+
+    query += ` ORDER BY s.created_at DESC LIMIT $${params.length + 1} OFFSET $${
+      params.length + 2
+    }`;
+    params.push(limit, offset);
+
+    const result = await this.db.query(query, params);
+
+    return result.rows.map((row) => ({
+      id: row.id,
+      status: row.status,
+      proofUrl: row.proof_url,
+      rejectionReason: row.rejection_reason,
+      createdAt: row.created_at,
+      reviewedAt: row.reviewed_at,
+      ad: {
+        id: row.ad_id,
+        title: row.ad_title,
+        payoutPerView: parseFloat(row.payout_per_view),
+        imageUrl: row.ad_image,
+      },
+    }));
+  }
 }
