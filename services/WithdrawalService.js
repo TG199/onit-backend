@@ -382,3 +382,5 @@ class WithdrawalService {
     }
   }
 }
+
+export default WithdrawalService;
