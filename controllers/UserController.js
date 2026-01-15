@@ -81,3 +81,33 @@ export async function submitProof(req, res) {
     handleError(res, error);
   }
 }
+
+/**
+ * GET /api/user/engagements
+ * Get user's submission history
+ */
+export async function getSubmissions(req, res) {
+  try {
+    const userId = req.user.id;
+    const limit = parseInt(req.query.limit) || 50;
+    const offset = parseInt(req.query.offset) || 0;
+    const status = req.query.status || null;
+
+    const submissions = await submissionService.getUserSubmissions(userId, {
+      limit,
+      offset,
+      status,
+    });
+
+    res.status(200).json({
+      submissions,
+      pagination: {
+        limit,
+        offset,
+        count: submissions.length,
+      },
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+}
