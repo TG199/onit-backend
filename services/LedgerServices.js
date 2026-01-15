@@ -140,4 +140,23 @@ class LedgerService {
       throw new DatabaseError("Failed to get balance", error);
     }
   }
+
+  /**
+   * Calculate balance from ledger (for audit purposes)
+   *
+   * @param {string} userId - User UUID
+   * @returns {Promise<number>} Calculated balance from ledger sum
+   */
+  async calculateBalanceFromLedger(userId) {
+    try {
+      const result = await this.db.query(
+        "SELECT calculate_balance_from_ledger($1) as balance",
+        [userId]
+      );
+
+      return parseFloat(result.rows[0].balance || 0);
+    } catch (error) {
+      throw new DatabaseError("Failed to calculate balance from ledger", error);
+    }
+  }
 }
