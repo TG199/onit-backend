@@ -250,4 +250,40 @@ class LedgerService {
       throw new DatabaseError("Failed to get transaction history", error);
     }
   }
+
+  /**
+   * Get aggregated transaction statistics
+   *
+   * @param {string} userId - User UUID
+   * @returns {Promise<Object>} Transaction statistics
+   */
+  async getTransactionStats(userId) {
+    try {
+      const result = await this.db.query(
+        `SELECT 
+          COUNT(*) as total_transactions,
+          COALESCE(SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END), 0) as total_earned,
+          COALESCE(SUM(CASE WHEN amount < 0 THEN ABS(amount) ELSE 0 END), 0) as total_withdrawn,
+          COALESCE(SUM(CASE WHEN type = $2 THEN amount ELSE 0 END), 0) as ad_earnings,
+          COALESCE(SUM(CASE WHEN type = $3 THEN ABS(amount) ELSE 0 END), 0) as withdrawals
+         FROM wallet_ledger
+         WHERE user_id = $1`,
+        [userId, TRANSACTION_TYPES.AD_PAYOUT, TRANSACTION_TYPES.WITHDRAWAL]
+      );
+
+      const stats = result.rows[0];
+
+      return {
+        totalTransactions: parseInt(stats.total_transactions),
+        totalEarned: parseFloat(stats.total_earned),
+        totalWithdrawn: parseFloat(stats.total_withdrawn),
+        adEarnings: parseFloat(stats.ad_earnings),
+        withdrawals: parseFloat(stats.withdrawals),
+        netBalance:
+          parseFloat(stats.total_earned) - parseFloat(stats.total_withdrawn),
+      };
+    } catch (error) {
+      throw new DatabaseError("Failed to get transaction stats", error);
+    }
+  }
 }
