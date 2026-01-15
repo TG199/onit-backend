@@ -286,4 +286,24 @@ class LedgerService {
       throw new DatabaseError("Failed to get transaction stats", error);
     }
   }
+
+  /**
+   * Find all users with balance mismatches (for nightly reconciliation)
+   *
+   * @returns {Promise<Array>} Users with mismatched balances
+   */
+  async findBalanceMismatches() {
+    try {
+      const result = await this.db.query("SELECT * FROM audit_all_balances()");
+
+      return result.rows.map((row) => ({
+        userId: row.user_id,
+        storedBalance: parseFloat(row.stored_balance),
+        ledgerBalance: parseFloat(row.ledger_balance),
+        difference: parseFloat(row.difference),
+      }));
+    } catch (error) {
+      throw new DatabaseError("Failed to find balance mismatches", error);
+    }
+  }
 }
