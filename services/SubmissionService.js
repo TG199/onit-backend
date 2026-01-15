@@ -307,3 +307,5 @@ class SubmissionService {
     };
   }
 }
+
+export default SubmissionService;
