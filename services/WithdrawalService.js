@@ -175,4 +175,44 @@ class WithdrawalService {
       completedAt: row.completed_at,
     }));
   }
+
+  /**
+   * Get withdrawal by ID (user can only see their own)
+   *
+   * @param {string} withdrawalId - Withdrawal UUID
+   * @param {string} userId - User UUID (for authorization)
+   * @returns {Promise<Object>} Withdrawal details
+   */
+  async getWithdrawalById(withdrawalId, userId) {
+    const result = await this.db.query(
+      "SELECT * FROM withdrawals WHERE id = $1",
+      [withdrawalId]
+    );
+
+    if (result.rows.length === 0) {
+      throw new NotFoundError("Withdrawal", withdrawalId);
+    }
+
+    const withdrawal = result.rows[0];
+
+    // Authorization: User can only see their own withdrawals
+    if (withdrawal.user_id !== userId) {
+      throw new ForbiddenError("Access denied");
+    }
+
+    return {
+      id: withdrawal.id,
+      userId: withdrawal.user_id,
+      amount: parseFloat(withdrawal.amount),
+      method: withdrawal.method,
+      paymentDetails: withdrawal.payment_details,
+      status: withdrawal.status,
+      transactionHash: withdrawal.transaction_hash,
+      failureReason: withdrawal.failure_reason,
+      processedBy: withdrawal.processed_by,
+      processedAt: withdrawal.processed_at,
+      completedAt: withdrawal.completed_at,
+      createdAt: withdrawal.created_at,
+    };
+  }
 }
