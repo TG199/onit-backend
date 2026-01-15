@@ -353,3 +353,45 @@ export async function getProfile(req, res) {
     handleError(res, error);
   }
 }
+
+/**
+ * GET /api/user/dashboard
+ * Get dashboard summary
+ */
+export async function getDashboard(req, res) {
+  try {
+    const userId = req.user.id;
+
+    // Get all data in parallel
+    const [balance, transactionStats, submissionStats, withdrawalStats] =
+      await Promise.all([
+        ledgerService.getBalance(userId),
+        ledgerService.getTransactionStats(userId),
+        submissionService.getUserStats(userId),
+        withdrawalService.getUserWithdrawalStats(userId),
+      ]);
+
+    res.status(200).json({
+      balance,
+      earnings: {
+        total: transactionStats.totalEarned,
+        fromAds: transactionStats.adEarnings,
+      },
+      submissions: {
+        total: submissionStats.totalSubmissions,
+        pending: submissionStats.pending,
+        approved: submissionStats.approved,
+        rejected: submissionStats.rejected,
+        approvalRate: submissionStats.approvalRate,
+      },
+      withdrawals: {
+        total: withdrawalStats.totalWithdrawals,
+        totalAmount: withdrawalStats.totalWithdrawn,
+        pending: withdrawalStats.pending,
+        completed: withdrawalStats.completed,
+      },
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+}
