@@ -217,4 +217,50 @@ class SubmissionService {
       createdAt: submission.created_at,
     };
   }
+
+  /**
+   * Get available ads for user
+   *
+   * @param {string} userId - User UUID
+   * @param {Object} options - Query options
+   * @returns {Promise<Array>} Available ads
+   */
+  async getAvailableAds(userId, { limit = 20, offset = 0 } = {}) {
+    const result = await this.db.query(
+      `SELECT 
+        a.id,
+        a.title,
+        a.description,
+        a.advertiser,
+        a.image_url,
+        a.payout_per_view,
+        a.total_views,
+        a.max_views,
+        EXISTS(
+          SELECT 1 FROM submissions s 
+          WHERE s.user_id = $1 
+          AND s.ad_id = a.id 
+          AND s.status IN ('pending', 'under_review', 'approved')
+        ) as has_submitted
+       FROM ads a
+       WHERE a.status = $2
+       AND (a.max_views IS NULL OR a.total_views < a.max_views)
+       ORDER BY a.created_at DESC
+       LIMIT $3 OFFSET $4`,
+      [userId, AD_STATUS.ACTIVE, limit, offset]
+    );
+
+    return result.rows.map((row) => ({
+      id: row.id,
+      title: row.title,
+      description: row.description,
+      advertiser: row.advertiser,
+      imageUrl: row.image_url,
+      payoutPerView: parseFloat(row.payout_per_view),
+      totalViews: parseInt(row.total_views),
+      maxViews: row.max_views ? parseInt(row.max_views) : null,
+      hasSubmitted: row.has_submitted,
+      canSubmit: !row.has_submitted,
+    }));
+  }
 }
