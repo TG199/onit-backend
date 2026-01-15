@@ -168,3 +168,33 @@ export async function getWallet(req, res) {
     handleError(res, error);
   }
 }
+
+/**
+ * GET /api/user/wallet/transactions
+ * Get transaction history
+ */
+export async function getTransactions(req, res) {
+  try {
+    const userId = req.user.id;
+    const limit = parseInt(req.query.limit) || 50;
+    const offset = parseInt(req.query.offset) || 0;
+    const type = req.query.type || null;
+
+    const transactions = await ledgerService.getTransactionHistory(userId, {
+      limit,
+      offset,
+      type,
+    });
+
+    res.status(200).json({
+      transactions,
+      pagination: {
+        limit,
+        offset,
+        count: transactions.length,
+      },
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+}
