@@ -301,4 +301,35 @@ class WithdrawalService {
       failed: parseInt(stats.failed),
     };
   }
+
+  /**
+   * Validate withdrawal request
+   * @private
+   */
+  _validateWithdrawalRequest(amount, method, paymentDetails) {
+    if (typeof amount !== "number" || amount <= 0) {
+      throw new ValidationError("Amount must be a positive number");
+    }
+
+    if (amount < MINIMUMS.WITHDRAWAL_AMOUNT) {
+      throw new ValidationError(
+        `Minimum withdrawal amount is ${MINIMUMS.WITHDRAWAL_AMOUNT}`
+      );
+    }
+
+    if (!method || !isValidEnum(method, WITHDRAWAL_METHODS)) {
+      throw new ValidationError(
+        `Invalid withdrawal method. Must be one of: ${Object.values(
+          WITHDRAWAL_METHODS
+        ).join(", ")}`
+      );
+    }
+
+    if (!paymentDetails || typeof paymentDetails !== "object") {
+      throw new ValidationError("Payment details are required");
+    }
+
+    // Validate payment details based on method
+    this._validatePaymentDetails(method, paymentDetails);
+  }
 }
