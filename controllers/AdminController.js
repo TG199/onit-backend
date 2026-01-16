@@ -403,3 +403,73 @@ export async function getBalanceMismatches(req, res) {
     handleError(res, error);
   }
 }
+
+/**
+ * GET /api/admin/stats
+ * Get platform statistics
+ */
+export async function getPlatformStats(req, res) {
+  try {
+    // Get various platform stats in parallel
+    const [userStats, submissionStats, withdrawalStats, adStats] =
+      await Promise.all([
+        dbClient.query(`
+        SELECT 
+          COUNT(*) as total_users,
+          COUNT(CASE WHEN is_blocked THEN 1 END) as blocked_users,
+          COALESCE(SUM(balance), 0) as total_balance
+        FROM users
+      `),
+        dbClient.query(`
+        SELECT 
+          COUNT(*) as total_submissions,
+          COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending,
+          COUNT(CASE WHEN status = 'approved' THEN 1 END) as approved,
+          COUNT(CASE WHEN status = 'rejected' THEN 1 END) as rejected
+        FROM submissions
+      `),
+        dbClient.query(`
+        SELECT 
+          COUNT(*) as total_withdrawals,
+          COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending,
+          COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed,
+          COALESCE(SUM(CASE WHEN status = 'completed' THEN amount ELSE 0 END), 0) as total_paid
+        FROM withdrawals
+      `),
+        dbClient.query(`
+        SELECT 
+          COUNT(*) as total_ads,
+          COUNT(CASE WHEN status = 'active' THEN 1 END) as active,
+          COUNT(CASE WHEN status = 'paused' THEN 1 END) as paused
+        FROM ads
+      `),
+      ]);
+
+    res.status(200).json({
+      users: {
+        total: parseInt(userStats.rows[0].total_users),
+        blocked: parseInt(userStats.rows[0].blocked_users),
+        totalBalance: parseFloat(userStats.rows[0].total_balance),
+      },
+      submissions: {
+        total: parseInt(submissionStats.rows[0].total_submissions),
+        pending: parseInt(submissionStats.rows[0].pending),
+        approved: parseInt(submissionStats.rows[0].approved),
+        rejected: parseInt(submissionStats.rows[0].rejected),
+      },
+      withdrawals: {
+        total: parseInt(withdrawalStats.rows[0].total_withdrawals),
+        pending: parseInt(withdrawalStats.rows[0].pending),
+        completed: parseInt(withdrawalStats.rows[0].completed),
+        totalPaid: parseFloat(withdrawalStats.rows[0].total_paid),
+      },
+      ads: {
+        total: parseInt(adStats.rows[0].total_ads),
+        active: parseInt(adStats.rows[0].active),
+        paused: parseInt(adStats.rows[0].paused),
+      },
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+}
