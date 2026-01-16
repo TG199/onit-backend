@@ -167,3 +167,28 @@ export async function completeWithdrawal(req, res) {
     handleError(res, error);
   }
 }
+
+/**
+ * POST /api/admin/withdrawals/:id/fail
+ * Fail withdrawal (refund user)
+ */
+export async function failWithdrawal(req, res) {
+  try {
+    const adminId = req.user.id;
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    if (!reason) {
+      return res.status(400).json({ error: "Failure reason is required" });
+    }
+
+    const result = await adminService.failWithdrawal(id, adminId, reason);
+
+    res.status(200).json({
+      message: "Withdrawal failed and user refunded",
+      withdrawal: result,
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+}
