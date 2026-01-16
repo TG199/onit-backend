@@ -535,4 +535,57 @@ class AdminService {
       return { adId, title, status: AD_STATUS.PAUSED };
     });
   }
+
+  /**
+   * Update ad
+   */
+  async updateAd(adId, adminId, updates) {
+    const allowedFields = [
+      "title",
+      "description",
+      "targetUrl",
+      "imageUrl",
+      "payoutPerView",
+      "maxViews",
+    ];
+    const updateFields = [];
+    const values = [];
+    let paramIndex = 1;
+
+    for (const [key, value] of Object.entries(updates)) {
+      const snakeKey = key.replace(
+        /[A-Z]/g,
+        (letter) => `_${letter.toLowerCase()}`
+      );
+      if (allowedFields.includes(key)) {
+        updateFields.push(`${snakeKey} = $${paramIndex}`);
+        values.push(value);
+        paramIndex++;
+      }
+    }
+
+    if (updateFields.length === 0) {
+      throw new ValidationError("No valid fields to update");
+    }
+
+    return await this.db.transaction(async (tx) => {
+      values.push(adId);
+      await tx.query(
+        `UPDATE ads SET ${updateFields.join(
+          ", "
+        )}, updated_at = NOW() WHERE id = $${paramIndex}`,
+        values
+      );
+
+      await this._logAdminAction(tx, {
+        adminId,
+        action: ADMIN_ACTIONS.UPDATE_AD,
+        resourceType: RESOURCE_TYPES.AD,
+        resourceId: adId,
+        details: updates,
+      });
+
+      return { adId, updated: true };
+    });
+  }
 }
