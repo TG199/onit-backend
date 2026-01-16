@@ -64,3 +64,28 @@ export async function approveSubmission(req, res) {
     handleError(res, error);
   }
 }
+
+/**
+ * POST /api/admin/submissions/:id/reject
+ * Reject submission
+ */
+export async function rejectSubmission(req, res) {
+  try {
+    const adminId = req.user.id;
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    if (!reason) {
+      return res.status(400).json({ error: "Rejection reason is required" });
+    }
+
+    const result = await adminService.rejectSubmission(id, adminId, reason);
+
+    res.status(200).json({
+      message: "Submission rejected",
+      submission: result,
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+}
