@@ -23,3 +23,32 @@ export function requireAdmin(req, res, next) {
 
   next();
 }
+
+/**
+ * Require user role (non-admin)
+ */
+export function requireUser(req, res, next) {
+  if (!req.user) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  if (req.user.role !== USER_ROLES.USER) {
+    return res.status(403).json({
+      error: "Access denied",
+      message: "User privileges required",
+    });
+  }
+
+  next();
+}
+
+/**
+ * Allow both user and admin
+ */
+export function requireAuthenticated(req, res, next) {
+  if (!req.user) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  next();
+}
