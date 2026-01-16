@@ -360,4 +360,55 @@ class AdminService {
       };
     });
   }
+
+  /**
+   * Complete withdrawal (mark as paid)
+   */
+  async completeWithdrawal(withdrawalId, adminId, transactionHash) {
+    if (!transactionHash || transactionHash.trim().length < 5) {
+      throw new ValidationError("Transaction hash is required");
+    }
+
+    return await this.db.transaction(async (tx) => {
+      // 1. Lock and get withdrawal
+      const wResult = await tx.query(
+        "SELECT * FROM withdrawals WHERE id = $1 FOR UPDATE",
+        [withdrawalId]
+      );
+
+      if (wResult.rows.length === 0) {
+        throw new NotFoundError("Withdrawal", withdrawalId);
+      }
+
+      const withdrawal = wResult.rows[0];
+
+      // 2. Validate state
+      if (withdrawal.status !== WITHDRAWAL_STATUS.PROCESSING) {
+        throw new InvalidStateError(withdrawal.status, "completed");
+      }
+
+      // 3. Update withdrawal status
+      await tx.query(
+        `UPDATE withdrawals 
+         SET status = $1, transaction_hash = $2, completed_at = NOW(), updated_at = NOW()
+         WHERE id = $3`,
+        [WITHDRAWAL_STATUS.COMPLETED, transactionHash, withdrawalId]
+      );
+
+      // 4. Log admin action
+      await this._logAdminAction(tx, {
+        adminId,
+        action: ADMIN_ACTIONS.COMPLETE_WITHDRAWAL,
+        resourceType: RESOURCE_TYPES.WITHDRAWAL,
+        resourceId: withdrawalId,
+        details: { transactionHash },
+      });
+
+      return {
+        withdrawalId,
+        status: WITHDRAWAL_STATUS.COMPLETED,
+        transactionHash,
+      };
+    });
+  }
 }
