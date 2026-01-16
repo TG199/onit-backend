@@ -588,4 +588,37 @@ class AdminService {
       return { adId, updated: true };
     });
   }
+
+  /**
+   * Change ad status
+   */
+  async changeAdStatus(adId, adminId, status) {
+    if (
+      ![AD_STATUS.ACTIVE, AD_STATUS.PAUSED, AD_STATUS.EXPIRED].includes(status)
+    ) {
+      throw new ValidationError("Invalid ad status");
+    }
+
+    return await this.db.transaction(async (tx) => {
+      await tx.query(
+        "UPDATE ads SET status = $1, updated_at = NOW() WHERE id = $2",
+        [status, adId]
+      );
+
+      const action =
+        status === AD_STATUS.ACTIVE
+          ? ADMIN_ACTIONS.ACTIVATE_AD
+          : ADMIN_ACTIONS.PAUSE_AD;
+
+      await this._logAdminAction(tx, {
+        adminId,
+        action,
+        resourceType: RESOURCE_TYPES.AD,
+        resourceId: adId,
+        details: { newStatus: status },
+      });
+
+      return { adId, status };
+    });
+  }
 }
