@@ -621,4 +621,39 @@ class AdminService {
       return { adId, status };
     });
   }
+
+  /**
+   * Get all ads (admin view)
+   */
+  async getAllAds({ limit = 50, offset = 0, status = null } = {}) {
+    let query = "SELECT * FROM ads WHERE 1=1";
+    const params = [];
+
+    if (status) {
+      query += ` AND status = $${params.length + 1}`;
+      params.push(status);
+    }
+
+    query += ` ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${
+      params.length + 2
+    }`;
+    params.push(limit, offset);
+
+    const result = await this.db.query(query, params);
+
+    return result.rows.map((row) => ({
+      id: row.id,
+      title: row.title,
+      description: row.description,
+      advertiser: row.advertiser,
+      targetUrl: row.target_url,
+      imageUrl: row.image_url,
+      payoutPerView: parseFloat(row.payout_per_view),
+      totalViews: parseInt(row.total_views),
+      maxViews: row.max_views ? parseInt(row.max_views) : null,
+      status: row.status,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+  }
 }
