@@ -237,3 +237,24 @@ export async function createAd(req, res) {
     handleError(res, error);
   }
 }
+
+/**
+ * PATCH /api/admin/ads/:id
+ * Update ad
+ */
+export async function updateAd(req, res) {
+  try {
+    const adminId = req.user.id;
+    const { id } = req.params;
+    const updates = req.body;
+
+    const result = await adminService.updateAd(id, adminId, updates);
+
+    res.status(200).json({
+      message: "Ad updated successfully",
+      ad: result,
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+}
