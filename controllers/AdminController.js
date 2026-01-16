@@ -318,3 +318,23 @@ export async function blockUser(req, res) {
     handleError(res, error);
   }
 }
+
+/**
+ * POST /api/admin/users/:id/unblock
+ * Unblock user
+ */
+export async function unblockUser(req, res) {
+  try {
+    const adminId = req.user.id;
+    const { id } = req.params;
+
+    const result = await adminService.toggleUserBlock(id, adminId, false);
+
+    res.status(200).json({
+      message: "User unblocked",
+      user: result,
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+}
