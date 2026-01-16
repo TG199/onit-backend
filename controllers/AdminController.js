@@ -138,3 +138,32 @@ export async function processWithdrawal(req, res) {
     handleError(res, error);
   }
 }
+
+/**
+ * POST /api/admin/withdrawals/:id/complete
+ * Complete withdrawal (mark as paid)
+ */
+export async function completeWithdrawal(req, res) {
+  try {
+    const adminId = req.user.id;
+    const { id } = req.params;
+    const { transactionHash } = req.body;
+
+    if (!transactionHash) {
+      return res.status(400).json({ error: "Transaction hash is required" });
+    }
+
+    const result = await adminService.completeWithdrawal(
+      id,
+      adminId,
+      transactionHash
+    );
+
+    res.status(200).json({
+      message: "Withdrawal completed",
+      withdrawal: result,
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+}
