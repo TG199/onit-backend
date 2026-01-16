@@ -44,3 +44,23 @@ export async function getSubmissions(req, res) {
     handleError(res, error);
   }
 }
+
+/**
+ * POST /api/admin/submissions/:id/approve
+ * Approve submission and pay user
+ */
+export async function approveSubmission(req, res) {
+  try {
+    const adminId = req.user.id;
+    const { id } = req.params;
+
+    const result = await adminService.approveSubmission(id, adminId);
+
+    res.status(200).json({
+      message: "Submission approved and user paid",
+      submission: result,
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+}
