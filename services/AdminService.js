@@ -299,4 +299,65 @@ class AdminService {
       createdAt: row.created_at,
     }));
   }
+
+  /**
+   * Process withdrawal (mark as processing and deduct balance)
+   */
+  async processWithdrawal(withdrawalId, adminId) {
+    return await this.db.transaction(async (tx) => {
+      // 1. Lock and get withdrawal
+      const wResult = await tx.query(
+        "SELECT * FROM withdrawals WHERE id = $1 FOR UPDATE",
+        [withdrawalId]
+      );
+
+      if (wResult.rows.length === 0) {
+        throw new NotFoundError("Withdrawal", withdrawalId);
+      }
+
+      const withdrawal = wResult.rows[0];
+
+      // 2. Validate state
+      if (withdrawal.status !== WITHDRAWAL_STATUS.PENDING) {
+        throw new InvalidStateError(withdrawal.status, "processing");
+      }
+
+      // 3. Create ledger entry (debit user balance)
+      await this.ledgerService.createEntry(tx, {
+        userId: withdrawal.user_id,
+        type: TRANSACTION_TYPES.WITHDRAWAL,
+        amount: -parseFloat(withdrawal.amount), // NEGATIVE
+        referenceType: REFERENCE_TYPES.WITHDRAWAL,
+        referenceId: withdrawalId,
+        metadata: {
+          processedBy: adminId,
+          method: withdrawal.method,
+        },
+      });
+
+      // 4. Update withdrawal status
+      await tx.query(
+        `UPDATE withdrawals 
+         SET status = $1, processed_by = $2, processed_at = NOW(), updated_at = NOW()
+         WHERE id = $3`,
+        [WITHDRAWAL_STATUS.PROCESSING, adminId, withdrawalId]
+      );
+
+      // 5. Log admin action
+      await this._logAdminAction(tx, {
+        adminId,
+        action: ADMIN_ACTIONS.PROCESS_WITHDRAWAL,
+        resourceType: RESOURCE_TYPES.WITHDRAWAL,
+        resourceId: withdrawalId,
+        details: { userId: withdrawal.user_id, amount: withdrawal.amount },
+      });
+
+      return {
+        withdrawalId,
+        status: WITHDRAWAL_STATUS.PROCESSING,
+        userId: withdrawal.user_id,
+        amount: parseFloat(withdrawal.amount),
+      };
+    });
+  }
 }
