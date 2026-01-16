@@ -411,4 +411,72 @@ class AdminService {
       };
     });
   }
+
+  /**
+   * Fail withdrawal (refund user)
+   */
+  async failWithdrawal(withdrawalId, adminId, reason) {
+    if (!reason || reason.trim().length < 10) {
+      throw new ValidationError(
+        "Failure reason must be at least 10 characters"
+      );
+    }
+
+    return await this.db.transaction(async (tx) => {
+      // 1. Lock and get withdrawal
+      const wResult = await tx.query(
+        "SELECT * FROM withdrawals WHERE id = $1 FOR UPDATE",
+        [withdrawalId]
+      );
+
+      if (wResult.rows.length === 0) {
+        throw new NotFoundError("Withdrawal", withdrawalId);
+      }
+
+      const withdrawal = wResult.rows[0];
+
+      // 2. Validate state
+      if (withdrawal.status !== WITHDRAWAL_STATUS.PROCESSING) {
+        throw new InvalidStateError(withdrawal.status, "failed");
+      }
+
+      // 3. Refund user (reverse the debit)
+      await this.ledgerService.createEntry(tx, {
+        userId: withdrawal.user_id,
+        type: TRANSACTION_TYPES.REFUND,
+        amount: parseFloat(withdrawal.amount), // POSITIVE (refund)
+        referenceType: REFERENCE_TYPES.WITHDRAWAL,
+        referenceId: withdrawalId,
+        metadata: {
+          reason: "Withdrawal failed",
+          failureReason: reason,
+          processedBy: adminId,
+        },
+      });
+
+      // 4. Update withdrawal status
+      await tx.query(
+        `UPDATE withdrawals 
+         SET status = $1, failure_reason = $2, updated_at = NOW()
+         WHERE id = $3`,
+        [WITHDRAWAL_STATUS.FAILED, reason, withdrawalId]
+      );
+
+      // 5. Log admin action
+      await this._logAdminAction(tx, {
+        adminId,
+        action: ADMIN_ACTIONS.FAIL_WITHDRAWAL,
+        resourceType: RESOURCE_TYPES.WITHDRAWAL,
+        resourceId: withdrawalId,
+        details: { userId: withdrawal.user_id, reason },
+      });
+
+      return {
+        withdrawalId,
+        status: WITHDRAWAL_STATUS.FAILED,
+        reason,
+        refunded: true,
+      };
+    });
+  }
 }
