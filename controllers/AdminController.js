@@ -217,3 +217,23 @@ export async function getAds(req, res) {
     handleError(res, error);
   }
 }
+
+/**
+ * POST /api/admin/ads
+ * Create new ad
+ */
+export async function createAd(req, res) {
+  try {
+    const adminId = req.user.id;
+    const adData = req.body;
+
+    const result = await adminService.createAd(adminId, adData);
+
+    res.status(201).json({
+      message: "Ad created successfully",
+      ad: result,
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+}
