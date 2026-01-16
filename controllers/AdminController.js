@@ -118,3 +118,23 @@ export async function getWithdrawals(req, res) {
     handleError(res, error);
   }
 }
+
+/**
+ * POST /api/admin/withdrawals/:id/process
+ * Process withdrawal (deduct balance)
+ */
+export async function processWithdrawal(req, res) {
+  try {
+    const adminId = req.user.id;
+    const { id } = req.params;
+
+    const result = await adminService.processWithdrawal(id, adminId);
+
+    res.status(200).json({
+      message: "Withdrawal processed and balance deducted",
+      withdrawal: result,
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+}
