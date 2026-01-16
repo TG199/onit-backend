@@ -354,3 +354,34 @@ export async function auditUser(req, res) {
     handleError(res, error);
   }
 }
+
+/**
+ * GET /api/admin/logs
+ * Get admin action logs
+ */
+export async function getLogs(req, res) {
+  try {
+    const limit = parseInt(req.query.limit) || 100;
+    const offset = parseInt(req.query.offset) || 0;
+    const adminId = req.query.adminId || null;
+    const action = req.query.action || null;
+
+    const logs = await adminService.getAdminLogs({
+      limit,
+      offset,
+      adminId,
+      action,
+    });
+
+    res.status(200).json({
+      logs,
+      pagination: {
+        limit,
+        offset,
+        count: logs.length,
+      },
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+}
