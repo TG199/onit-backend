@@ -258,3 +258,23 @@ export async function updateAd(req, res) {
     handleError(res, error);
   }
 }
+
+/**
+ * POST /api/admin/ads/:id/activate
+ * Activate ad
+ */
+export async function activateAd(req, res) {
+  try {
+    const adminId = req.user.id;
+    const { id } = req.params;
+
+    const result = await adminService.changeAdStatus(id, adminId, "active");
+
+    res.status(200).json({
+      message: "Ad activated",
+      ad: result,
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+}
