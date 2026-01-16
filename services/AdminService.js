@@ -656,4 +656,26 @@ class AdminService {
       updatedAt: row.updated_at,
     }));
   }
+
+  /**
+   * Block/unblock user
+   */
+  async toggleUserBlock(userId, adminId, block = true) {
+    return await this.db.transaction(async (tx) => {
+      await tx.query(
+        "UPDATE users SET is_blocked = $1, updated_at = NOW() WHERE id = $2",
+        [block, userId]
+      );
+
+      await this._logAdminAction(tx, {
+        adminId,
+        action: block ? ADMIN_ACTIONS.BLOCK_USER : ADMIN_ACTIONS.UNBLOCK_USER,
+        resourceType: RESOURCE_TYPES.USER,
+        resourceId: userId,
+        details: { blocked: block },
+      });
+
+      return { userId, blocked: block };
+    });
+  }
 }
