@@ -678,4 +678,52 @@ class AdminService {
       return { userId, blocked: block };
     });
   }
+  /**
+   * Get admin action logs
+   */
+  async getAdminLogs({
+    limit = 100,
+    offset = 0,
+    adminId = null,
+    action = null,
+  } = {}) {
+    let query = `
+      SELECT 
+        l.*,
+        u.email as admin_email
+      FROM admin_logs l
+      JOIN users u ON l.admin_id = u.id
+      WHERE 1=1
+    `;
+
+    const params = [];
+
+    if (adminId) {
+      query += ` AND l.admin_id = $${params.length + 1}`;
+      params.push(adminId);
+    }
+
+    if (action) {
+      query += ` AND l.action = $${params.length + 1}`;
+      params.push(action);
+    }
+
+    query += ` ORDER BY l.created_at DESC LIMIT $${params.length + 1} OFFSET $${
+      params.length + 2
+    }`;
+    params.push(limit, offset);
+
+    const result = await this.db.query(query, params);
+
+    return result.rows.map((row) => ({
+      id: row.id,
+      adminId: row.admin_id,
+      adminEmail: row.admin_email,
+      action: row.action,
+      resourceType: row.resource_type,
+      resourceId: row.resource_id,
+      details: row.details,
+      createdAt: row.created_at,
+    }));
+  }
 }
