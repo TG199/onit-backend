@@ -181,4 +181,69 @@ class AdminService {
       };
     });
   }
+
+  /**
+   * Reject submission
+   */
+  async rejectSubmission(submissionId, adminId, reason) {
+    if (!reason || reason.trim().length < 10) {
+      throw new ValidationError(
+        "Rejection reason must be at least 10 characters"
+      );
+    }
+
+    return await this.db.transaction(async (tx) => {
+      // 1. Lock and get submission
+      const subResult = await tx.query(
+        "SELECT * FROM submissions WHERE id = $1 FOR UPDATE",
+        [submissionId]
+      );
+
+      if (subResult.rows.length === 0) {
+        throw new NotFoundError("Submission", submissionId);
+      }
+
+      const submission = subResult.rows[0];
+
+      // 2. Validate state
+      if (submission.status === SUBMISSION_STATUS.APPROVED) {
+        throw new InvalidStateError(submission.status, "rejected");
+      }
+
+      if (submission.status === SUBMISSION_STATUS.REJECTED) {
+        throw new InvalidStateError(submission.status, "rejected");
+      }
+
+      // Move to under_review first if pending
+      if (submission.status === SUBMISSION_STATUS.PENDING) {
+        await tx.query("UPDATE submissions SET status = $1 WHERE id = $2", [
+          SUBMISSION_STATUS.UNDER_REVIEW,
+          submissionId,
+        ]);
+      }
+
+      // 3. Update submission status
+      await tx.query(
+        `UPDATE submissions 
+         SET status = $1, rejection_reason = $2, reviewed_by = $3, reviewed_at = NOW(), updated_at = NOW()
+         WHERE id = $4`,
+        [SUBMISSION_STATUS.REJECTED, reason, adminId, submissionId]
+      );
+
+      // 4. Log admin action
+      await this._logAdminAction(tx, {
+        adminId,
+        action: ADMIN_ACTIONS.REJECT_SUBMISSION,
+        resourceType: RESOURCE_TYPES.SUBMISSION,
+        resourceId: submissionId,
+        details: { userId: submission.user_id, reason },
+      });
+
+      return {
+        submissionId,
+        status: SUBMISSION_STATUS.REJECTED,
+        reason,
+      };
+    });
+  }
 }
