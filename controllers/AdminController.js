@@ -192,3 +192,28 @@ export async function failWithdrawal(req, res) {
     handleError(res, error);
   }
 }
+
+/**
+ * GET /api/admin/ads
+ * Get all ads
+ */
+export async function getAds(req, res) {
+  try {
+    const limit = parseInt(req.query.limit) || 50;
+    const offset = parseInt(req.query.offset) || 0;
+    const status = req.query.status || null;
+
+    const ads = await adminService.getAllAds({ limit, offset, status });
+
+    res.status(200).json({
+      ads,
+      pagination: {
+        limit,
+        offset,
+        count: ads.length,
+      },
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+}
