@@ -89,3 +89,32 @@ export async function rejectSubmission(req, res) {
     handleError(res, error);
   }
 }
+
+/**
+ * GET /api/admin/withdrawals
+ * Get pending withdrawals queue
+ */
+export async function getWithdrawals(req, res) {
+  try {
+    const limit = parseInt(req.query.limit) || 50;
+    const offset = parseInt(req.query.offset) || 0;
+    const status = req.query.status || null;
+
+    const withdrawals = await adminService.getPendingWithdrawals({
+      limit,
+      offset,
+      status,
+    });
+
+    res.status(200).json({
+      withdrawals,
+      pagination: {
+        limit,
+        offset,
+        count: withdrawals.length,
+      },
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+}
