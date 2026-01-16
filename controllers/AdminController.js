@@ -385,3 +385,21 @@ export async function getLogs(req, res) {
     handleError(res, error);
   }
 }
+
+/**
+ * GET /api/admin/audit/mismatches
+ * Find all balance mismatches
+ */
+export async function getBalanceMismatches(req, res) {
+  try {
+    const mismatches = await ledgerService.findBalanceMismatches();
+
+    res.status(200).json({
+      mismatches,
+      count: mismatches.length,
+      critical: mismatches.length > 0,
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+}
