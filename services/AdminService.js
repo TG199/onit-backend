@@ -85,4 +85,100 @@ class AdminService {
       createdAt: row.created_at,
     }));
   }
+
+  /**
+   * Approve submission and pay user
+   */
+  async approveSubmission(submissionId, adminId) {
+    return await this.db.transaction(async (tx) => {
+      // 1. Lock and get submission
+      const subResult = await tx.query(
+        "SELECT * FROM submissions WHERE id = $1 FOR UPDATE",
+        [submissionId]
+      );
+
+      if (subResult.rows.length === 0) {
+        throw new NotFoundError("Submission", submissionId);
+      }
+
+      const submission = subResult.rows[0];
+
+      // 2. Validate state
+      if (submission.status === SUBMISSION_STATUS.APPROVED) {
+        throw new InvalidStateError(submission.status, "approved");
+      }
+
+      if (submission.status === SUBMISSION_STATUS.REJECTED) {
+        throw new InvalidStateError(submission.status, "approved");
+      }
+
+      // Move to under_review first if pending
+      if (submission.status === SUBMISSION_STATUS.PENDING) {
+        await tx.query("UPDATE submissions SET status = $1 WHERE id = $2", [
+          SUBMISSION_STATUS.UNDER_REVIEW,
+          submissionId,
+        ]);
+      }
+
+      // 3. Get ad payout amount
+      const adResult = await tx.query(
+        "SELECT payout_per_view FROM ads WHERE id = $1",
+        [submission.ad_id]
+      );
+
+      if (adResult.rows.length === 0) {
+        throw new NotFoundError("Ad", submission.ad_id);
+      }
+
+      const payoutAmount = parseFloat(adResult.rows[0].payout_per_view);
+
+      // 4. Create ledger entry (pays user)
+      await this.ledgerService.createEntry(tx, {
+        userId: submission.user_id,
+        type: TRANSACTION_TYPES.AD_PAYOUT,
+        amount: payoutAmount,
+        referenceType: REFERENCE_TYPES.SUBMISSION,
+        referenceId: submissionId,
+        metadata: {
+          adId: submission.ad_id,
+          approvedBy: adminId,
+          approvalDate: new Date().toISOString(),
+        },
+      });
+
+      // 5. Update submission status
+      await tx.query(
+        `UPDATE submissions 
+         SET status = $1, reviewed_by = $2, reviewed_at = NOW(), updated_at = NOW()
+         WHERE id = $3`,
+        [SUBMISSION_STATUS.APPROVED, adminId, submissionId]
+      );
+
+      // 6. Increment ad total_views
+      await tx.query(
+        "UPDATE ads SET total_views = total_views + 1, updated_at = NOW() WHERE id = $1",
+        [submission.ad_id]
+      );
+
+      // 7. Log admin action
+      await this._logAdminAction(tx, {
+        adminId,
+        action: ADMIN_ACTIONS.APPROVE_SUBMISSION,
+        resourceType: RESOURCE_TYPES.SUBMISSION,
+        resourceId: submissionId,
+        details: {
+          userId: submission.user_id,
+          adId: submission.ad_id,
+          payoutAmount,
+        },
+      });
+
+      return {
+        submissionId,
+        status: SUBMISSION_STATUS.APPROVED,
+        payoutAmount,
+        userId: submission.user_id,
+      };
+    });
+  }
 }
