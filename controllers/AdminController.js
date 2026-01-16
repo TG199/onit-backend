@@ -338,3 +338,19 @@ export async function unblockUser(req, res) {
     handleError(res, error);
   }
 }
+
+/**
+ * GET /api/admin/users/:id/audit
+ * Audit user balance
+ */
+export async function auditUser(req, res) {
+  try {
+    const { id } = req.params;
+
+    const audit = await ledgerService.auditUserBalance(id);
+
+    res.status(200).json({ audit });
+  } catch (error) {
+    handleError(res, error);
+  }
+}
