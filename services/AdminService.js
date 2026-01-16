@@ -726,4 +726,26 @@ class AdminService {
       createdAt: row.created_at,
     }));
   }
+
+  /**
+   * Log admin action
+   * @private
+   */
+  async _logAdminAction(
+    tx,
+    { adminId, action, resourceType, resourceId, details }
+  ) {
+    await tx.query(
+      `INSERT INTO admin_logs (id, admin_id, action, resource_type, resource_id, details)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        uuidv4(),
+        adminId,
+        action,
+        resourceType,
+        resourceId,
+        JSON.stringify(details),
+      ]
+    );
+  }
 }
