@@ -278,3 +278,23 @@ export async function activateAd(req, res) {
     handleError(res, error);
   }
 }
+
+/**
+ * POST /api/admin/ads/:id/pause
+ * Pause ad
+ */
+export async function pauseAd(req, res) {
+  try {
+    const adminId = req.user.id;
+    const { id } = req.params;
+
+    const result = await adminService.changeAdStatus(id, adminId, "paused");
+
+    res.status(200).json({
+      message: "Ad paused",
+      ad: result,
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+}
