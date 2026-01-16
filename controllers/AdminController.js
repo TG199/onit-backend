@@ -298,3 +298,23 @@ export async function pauseAd(req, res) {
     handleError(res, error);
   }
 }
+
+/**
+ * POST /api/admin/users/:id/block
+ * Block user
+ */
+export async function blockUser(req, res) {
+  try {
+    const adminId = req.user.id;
+    const { id } = req.params;
+
+    const result = await adminService.toggleUserBlock(id, adminId, true);
+
+    res.status(200).json({
+      message: "User blocked",
+      user: result,
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+}
