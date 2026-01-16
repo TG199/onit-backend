@@ -246,4 +246,57 @@ class AdminService {
       };
     });
   }
+
+  /**
+   * Get pending withdrawals queue
+   */
+  async getPendingWithdrawals({ limit = 50, offset = 0, status = null } = {}) {
+    let query = `
+      SELECT 
+        w.id,
+        w.user_id,
+        w.amount,
+        w.method,
+        w.payment_details,
+        w.status,
+        w.created_at,
+        u.email as user_email,
+        u.phone as user_phone,
+        u.balance as user_balance
+      FROM withdrawals w
+      JOIN users u ON w.user_id = u.id
+      WHERE 1=1
+    `;
+
+    const params = [];
+
+    if (status) {
+      query += ` AND w.status = $${params.length + 1}`;
+      params.push(status);
+    } else {
+      // Default: show only pending
+      query += ` AND w.status = $${params.length + 1}`;
+      params.push(WITHDRAWAL_STATUS.PENDING);
+    }
+
+    query += ` ORDER BY w.created_at ASC LIMIT $${params.length + 1} OFFSET $${
+      params.length + 2
+    }`;
+    params.push(limit, offset);
+
+    const result = await this.db.query(query, params);
+
+    return result.rows.map((row) => ({
+      id: row.id,
+      userId: row.user_id,
+      userEmail: row.user_email,
+      userPhone: row.user_phone,
+      userBalance: parseFloat(row.user_balance),
+      amount: parseFloat(row.amount),
+      method: row.method,
+      paymentDetails: row.payment_details,
+      status: row.status,
+      createdAt: row.created_at,
+    }));
+  }
 }
