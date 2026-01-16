@@ -473,3 +473,38 @@ export async function getPlatformStats(req, res) {
     handleError(res, error);
   }
 }
+
+/**
+ * Error handler helper
+ */
+function handleError(res, error) {
+  console.error("Admin controller error:", error);
+
+  if (error instanceof ValidationError) {
+    return res.status(400).json({
+      error: error.message,
+      code: error.code,
+    });
+  }
+
+  if (error instanceof NotFoundError) {
+    return res.status(404).json({
+      error: error.message,
+      code: error.code,
+    });
+  }
+
+  if (error instanceof InvalidStateError) {
+    return res.status(400).json({
+      error: error.message,
+      code: error.code,
+      details: error.details,
+    });
+  }
+
+  // Unknown error
+  return res.status(500).json({
+    error: "Internal server error",
+    code: "INTERNAL_ERROR",
+  });
+}
