@@ -479,4 +479,60 @@ class AdminService {
       };
     });
   }
+  /**
+   * Create new ad
+   */
+  async createAd(adminId, adData) {
+    const {
+      title,
+      description,
+      advertiser,
+      targetUrl,
+      imageUrl,
+      payoutPerView,
+      maxViews,
+    } = adData;
+
+    // Validate required fields
+    if (!title || !advertiser || !targetUrl || !payoutPerView) {
+      throw new ValidationError(
+        "title, advertiser, targetUrl, and payoutPerView are required"
+      );
+    }
+
+    if (payoutPerView <= 0) {
+      throw new ValidationError("payoutPerView must be positive");
+    }
+
+    return await this.db.transaction(async (tx) => {
+      const adId = uuidv4();
+
+      await tx.query(
+        `INSERT INTO ads (id, title, description, advertiser, target_url, image_url, payout_per_view, max_views, status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [
+          adId,
+          title,
+          description || null,
+          advertiser,
+          targetUrl,
+          imageUrl || null,
+          payoutPerView,
+          maxViews || null,
+          AD_STATUS.PAUSED, // Start paused by default
+        ]
+      );
+
+      // Log admin action
+      await this._logAdminAction(tx, {
+        adminId,
+        action: ADMIN_ACTIONS.CREATE_AD,
+        resourceType: RESOURCE_TYPES.AD,
+        resourceId: adId,
+        details: { title, payoutPerView },
+      });
+
+      return { adId, title, status: AD_STATUS.PAUSED };
+    });
+  }
 }
