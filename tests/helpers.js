@@ -91,3 +91,48 @@ export function summary() {
     return 1;
   }
 }
+
+/**
+ * Expect error helper
+ */
+export async function expectError(fn, expectedMessage = null) {
+  try {
+    await fn();
+    throw new Error("Expected operation to fail but it succeeded");
+  } catch (error) {
+    if (expectedMessage && !error.message.includes(expectedMessage)) {
+      throw new Error(
+        `Expected error containing "${expectedMessage}" but got: ${error.message}`
+      );
+    }
+  }
+}
+
+/**
+ * Assert helper
+ */
+export function assert(condition, message) {
+  if (!condition) {
+    throw new Error(message || "Assertion failed");
+  }
+}
+
+/**
+ * Assert equal helper
+ */
+export function assertEqual(actual, expected, message) {
+  if (actual !== expected) {
+    throw new Error(message || `Expected ${expected} but got ${actual}`);
+  }
+}
+
+/**
+ * Assert approximately equal (for floats)
+ */
+export function assertApprox(actual, expected, tolerance = 0.01, message) {
+  if (Math.abs(actual - expected) > tolerance) {
+    throw new Error(
+      message || `Expected ${expected} ± ${tolerance} but got ${actual}`
+    );
+  }
+}
