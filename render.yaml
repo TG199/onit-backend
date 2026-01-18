@@ -2,8 +2,8 @@ services:
   # Web Service
   - type: web
     name: onit-backend
-    region: oregon # Change to your preferred region
-    plan: starter # or free
+    region: oregon
+    plan: starter 
     runtime: node
     buildCommand: npm install
     startCommand: npm start
@@ -26,12 +26,4 @@ databases:
   - name: onit-db
     databaseName: onit_db
     user: onit_user
-    plan: starter # or free
-
-# Redis (optional - comment out if not using Redis on Render)
-# Note: Redis is not available on free tier
-# services:
-#   - type: redis
-#     name: onit-redis
-#     plan: starter
-#     maxmemoryPolicy: allkeys-lru
+    plan: starter 
