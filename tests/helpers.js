@@ -136,3 +136,55 @@ export function assertApprox(actual, expected, tolerance = 0.01, message) {
     );
   }
 }
+
+/**
+ * Create test user
+ */
+export async function createTestUser(overrides = {}) {
+  const id = uuidv4();
+  const email = overrides.email || `test-${id.slice(0, 8)}@example.com`;
+  const phone =
+    overrides.phone || `+1${Math.floor(Math.random() * 1000000000)}`;
+  const password = overrides.password || "password123";
+  const role = overrides.role || "user";
+
+  const passwordHash = await bcrypt.hash(password, 10);
+
+  await db.query(
+    `INSERT INTO users (id, email, phone, password_hash, role, balance)
+     VALUES ($1, $2, $3, $4, $5, $6)`,
+    [id, email, phone, passwordHash, role, overrides.balance || 0]
+  );
+
+  return { id, email, phone, password, role };
+}
+
+/**
+ * Create test admin
+ */
+export async function createTestAdmin(overrides = {}) {
+  return createTestUser({ ...overrides, role: "admin" });
+}
+
+/**
+ * Create test ad
+ */
+export async function createTestAd(overrides = {}) {
+  const id = uuidv4();
+
+  await db.query(
+    `INSERT INTO ads (id, title, advertiser, target_url, payout_per_view, status, max_views)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [
+      id,
+      overrides.title || "Test Ad",
+      overrides.advertiser || "Test Advertiser",
+      overrides.targetUrl || "https://example.com",
+      overrides.payoutPerView || 10.0,
+      overrides.status || "active",
+      overrides.maxViews || null,
+    ]
+  );
+
+  return { id, ...overrides };
+}
