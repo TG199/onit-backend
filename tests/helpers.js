@@ -188,3 +188,157 @@ export async function createTestAd(overrides = {}) {
 
   return { id, ...overrides };
 }
+
+/**
+ * Create test submission
+ */
+export async function createTestSubmission(userId, adId, overrides = {}) {
+  const id = uuidv4();
+
+  await db.query(
+    `INSERT INTO submissions (id, user_id, ad_id, proof_url, status)
+     VALUES ($1, $2, $3, $4, $5)`,
+    [
+      id,
+      userId,
+      adId,
+      overrides.proofUrl || "https://example.com/proof.jpg",
+      overrides.status || "pending",
+    ]
+  );
+
+  return { id, userId, adId, ...overrides };
+}
+
+/**
+ * Create test withdrawal
+ */
+export async function createTestWithdrawal(userId, amount, overrides = {}) {
+  const id = uuidv4();
+
+  await db.query(
+    `INSERT INTO withdrawals (id, user_id, amount, method, payment_details, status)
+     VALUES ($1, $2, $3, $4, $5, $6)`,
+    [
+      id,
+      userId,
+      amount,
+      overrides.method || "bank_transfer",
+      JSON.stringify(
+        overrides.paymentDetails || {
+          accountNumber: "1234567890",
+          bankName: "Test Bank",
+          accountName: "Test User",
+        }
+      ),
+      overrides.status || "pending",
+    ]
+  );
+
+  return { id, userId, amount, ...overrides };
+}
+
+/**
+ * Login user and get token
+ */
+export async function loginUser(email, password) {
+  // Simulate login by creating token in Redis
+  const userResult = await db.query(
+    "SELECT id, role FROM users WHERE email = $1",
+    [email]
+  );
+
+  if (userResult.rows.length === 0) {
+    throw new Error("User not found");
+  }
+
+  const user = userResult.rows[0];
+  const token = uuidv4();
+
+  await redis.set(`auth_${token}`, user.id, 86400); // 24 hours
+
+  return { token, userId: user.id, role: user.role };
+}
+
+/**
+ * Make API request helper
+ */
+export async function apiRequest(method, path, options = {}) {
+  const url = `http://localhost:${env.PORT}${path}`;
+
+  const headers = {
+    "Content-Type": "application/json",
+    ...options.headers,
+  };
+
+  const response = await fetch(url, {
+    method,
+    headers,
+    ...(options.body && { body: JSON.stringify(options.body) }),
+  });
+
+  const data = await response.json().catch(() => null);
+
+  return {
+    status: response.status,
+    data,
+    ok: response.ok,
+  };
+}
+
+/**
+ * Cleanup test data
+ */
+export async function cleanup() {
+  // Clean up in reverse order of dependencies
+  await db.query(
+    "DELETE FROM admin_logs WHERE admin_id IN (SELECT id FROM users WHERE email LIKE $1)",
+    ["test-%"]
+  );
+  await db.query(
+    "DELETE FROM submissions WHERE user_id IN (SELECT id FROM users WHERE email LIKE $1)",
+    ["test-%"]
+  );
+  await db.query(
+    "DELETE FROM withdrawals WHERE user_id IN (SELECT id FROM users WHERE email LIKE $1)",
+    ["test-%"]
+  );
+  await db.query(
+    "DELETE FROM wallet_ledger WHERE user_id IN (SELECT id FROM users WHERE email LIKE $1)",
+    ["test-%"]
+  );
+  await db.query(
+    "DELETE FROM ad_engagements WHERE user_id IN (SELECT id FROM users WHERE email LIKE $1)",
+    ["test-%"]
+  );
+  await db.query("DELETE FROM ads WHERE title LIKE $1", ["Test Ad%"]);
+  await db.query("DELETE FROM users WHERE email LIKE $1", ["test-%"]);
+}
+
+/**
+ * Wait helper
+ */
+export function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Get current balance from database
+ */
+export async function getBalance(userId) {
+  const result = await db.query("SELECT balance FROM users WHERE id = $1", [
+    userId,
+  ]);
+  return parseFloat(result.rows[0].balance);
+}
+
+/**
+ * Get ledger sum
+ */
+export async function getLedgerSum(userId) {
+  const result = await db.query(
+    "SELECT COALESCE(SUM(amount), 0) as total FROM wallet_ledger WHERE user_id = $1",
+    [userId]
+  );
+  return parseFloat(result.rows[0].total);
+}
