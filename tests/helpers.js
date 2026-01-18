@@ -54,3 +54,40 @@ export async function test(name, fn) {
     failCount++;
   }
 }
+
+/**
+ * Skip a test
+ */
+export function skip(name, reason) {
+  console.log(
+    `${colors.YELLOW}⊘${colors.RESET} ${name} ${colors.YELLOW}(${reason})${colors.RESET}`
+  );
+  skipCount++;
+}
+
+/**
+ * Test section header
+ */
+export function section(name) {
+  console.log(`\n${colors.YELLOW}=== ${name} ===${colors.RESET}`);
+}
+
+/**
+ * Print test summary
+ */
+export function summary() {
+  console.log(`\n${colors.YELLOW}=== Test Summary ===${colors.RESET}`);
+  console.log(`${colors.GREEN}Passed: ${passCount}${colors.RESET}`);
+  console.log(`${colors.RED}Failed: ${failCount}${colors.RESET}`);
+  if (skipCount > 0) {
+    console.log(`${colors.YELLOW}Skipped: ${skipCount}${colors.RESET}`);
+  }
+
+  if (failCount === 0) {
+    console.log(`\n${colors.GREEN}✓ All tests passed!${colors.RESET}\n`);
+    return 0;
+  } else {
+    console.log(`\n${colors.RED}✗ Some tests failed${colors.RESET}\n`);
+    return 1;
+  }
+}
