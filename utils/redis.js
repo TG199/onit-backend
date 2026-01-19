@@ -2,14 +2,14 @@ import redis from "redis";
 
 class RedisClient {
   constructor() {
-    const isProduction = process.env.NODE_ENV === "production";
+    // const isProduction = process.env.NODE_ENV === "production";
 
     // Support both REDIS_URL (production) and default localhost (development)
     const redisConfig = process.env.REDIS_URL
       ? {
           url: process.env.REDIS_URL,
           socket: {
-            tls: isProduction, // Only use TLS in production
+            tls: false, // Only use TLS in production
             rejectUnauthorized: false,
           },
         }
