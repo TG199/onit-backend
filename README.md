@@ -54,9 +54,14 @@ npm start
 server/
 ├── config/         # Configuration files
 ├── controllers/    # Route controllers
-├── models/         # Database models
+├── db/             # Database
+├── docs/           # API docs
+├── middleware      # API middleware
+├── migrations      # Database migrations
 ├── routes/         # API routes
-├── middleware/     # Custom middleware
+├── scripts/        # Startup and restore scripts
+├── services/       # API services
+├── test/           # Integration test
 ├── utils/          # Utility functions
 └── server.js       # Entry point
 ```
