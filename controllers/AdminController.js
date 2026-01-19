@@ -156,7 +156,7 @@ export async function completeWithdrawal(req, res) {
     const result = await adminService.completeWithdrawal(
       id,
       adminId,
-      transactionHash
+      transactionHash,
     );
 
     res.status(200).json({
