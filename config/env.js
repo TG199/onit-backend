@@ -18,11 +18,12 @@ const EnvSchema = z.object({
     .default("development"),
   PORT: z.coerce.number().default(5000),
 
+  DATABASE_URL: z.string().optional(),
   DB_HOST: z.string().optional(),
   DB_PORT: z.coerce.number().optional(),
   DB_NAME: z.string().optional(),
   DB_USER: z.string().optional(),
-  DB_PASSWORD: z.string().min(1).optional(),
+  DB_PASSWORD: z.string().optional(),
 
   REDIS_URL: z.string().optional(),
 });
@@ -50,4 +51,5 @@ if (env.NODE_ENV === "production") {
     }
   }
 }
+
 export default env;
