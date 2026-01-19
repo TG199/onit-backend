@@ -24,7 +24,6 @@ const EnvSchema = z.object({
   DB_USER: z.string().optional(),
   DB_PASSWORD: z.string().min(1).optional(),
 
-  DATABASE_URL: z.string().optional(),
   REDIS_URL: z.string().optional(),
 });
 
